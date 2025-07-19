@@ -1,3 +1,5 @@
+# TODO HAVE THE PATTERN IDX BE WEIGHTED BY NEARBY TILES - 'sticky'
+
 extends Node2D
 
 class Point:
@@ -16,13 +18,6 @@ class GridSquareAttributes:
 		self.is_vertical = is_vertical
 		self.is_white = is_white
 
-class SemicircleAttributes:
-	var is_flipped: bool  # whether the semicircle is rotated 180 degrees
-	var is_white: bool
-
-	func _init(is_flipped: bool, is_white: bool):
-		self.is_flipped = is_flipped
-
 # Declare variables
 const N_CELLS: int = 12
 const N_SEMICIRCLE_SEGMENTS: int = 64
@@ -35,10 +30,10 @@ const TOTAL_CELLS: int = N_CELLS**2
 
 # Probabilities
 const PROB_WHITE_SQUARE = 0.5
-const PROB_WHITE_SEMICIRCLE = 0.5
 const PROB_SEMICIRCLE = 0.5
-const PROB_SEMICIRCLE_FLIPPED = 0.5
 const PROB_VERTICAL = 0.5
+# Single edge, double stacked, circle, two facing inwards
+const SEMICIRCLE_PATTERN_PROBABILITIES = [0.1, 0.3, 0.3, 0.3]
 
 # Initialise variables
 var win_dim
@@ -62,22 +57,6 @@ func _ready():
 			var is_white = randf() < PROB_WHITE_SQUARE
 			grid_squares[x].append(GridSquareAttributes.new(is_vertical, is_white))
 
-	# Define our semicircles as a nested grid - each row and column can have up to two semicircles
-	# Probability of there being a semicircle depends on the PROB_SEMICIRCLE variable
-	# 0 for black, 1 for white, null for none
-	for x in range(N_DRAWN_CELLS):
-		semicircles.append([])
-		for y in range(N_DRAWN_CELLS):
-			semicircles[x].append([])
-
-			for z in range(2):
-				var is_semicircle = randf() < PROB_SEMICIRCLE
-				if !is_semicircle: semicircles[x][y].append(null)
-
-				var orientation = randf() < PROB_SEMICIRCLE_FLIPPED
-				var color = randf() < PROB_WHITE_SEMICIRCLE
-				semicircles[x][y].append(SemicircleAttributes.new(orientation, color))
-
 	queue_redraw()
 
 func _draw():
@@ -100,38 +79,34 @@ func _draw():
 
 			# Define grid square attributes and draw it
 			var grid_color = to_color(g.is_white)
-			draw_rotated_rect(origin, Vector2(cell_length, cell_length), grid_color, WORLD_ROTATION, centre_point)
+			draw_polygon(
+				to_world(gen_square_points(origin, Vector2(cell_length, cell_length))),
+				[grid_color]
+			)
 
-	# Draw all semicircles over the top
-	for x in range(N_DRAWN_CELLS):
-		for y in range(N_DRAWN_CELLS):
-			var g = grid_squares[x][y]
-			var origin = Vector2((x-EXTRA_DRAWN/2)*cell_length, (y-EXTRA_DRAWN/2)*cell_length)
+			# For each grid, we pick one of the semicircle patterns to draw over the top
 
-			# Define semicircle attributes and draw them
-			var base_rotation = to_grid_orientation(g.is_vertical)
-			for z in range(2):
-				var sc = semicircles[x][y][z]
-				if sc == null: continue
-
-				# If vertical, assign the offset
-				var active_offset = 0.25 + (0.5*z)
-				var centre_offset
-				if g.is_vertical == false: centre_offset = Vector2(0.5*cell_length, active_offset*cell_length)  # horizontal offset
-				else: centre_offset = Vector2(active_offset*cell_length, 0.5*cell_length)  # vertical offset
-
-				var centre = origin + centre_offset
-				var sc_color = to_color(!g.is_white)
-				var sc_orientation = base_rotation + to_sc_orientation(sc.is_flipped)
-
-				var sc_points = semicircle_points(centre, cell_length/2, sc_orientation)
-				sc_points = to_world(sc_points)
-				print(sc_points)
-				draw_polygon(sc_points, [sc_color])
-				
+			# TODO Figure out this generation
+			var pattern_idx = weighted_random(SEMICIRCLE_PATTERN_PROBABILITIES)
+			draw_semicircle_pattern(origin + Vector2(cell_length/2, cell_length/2), pattern_idx, to_color(!g.is_white))
 
 
 # Helper functions
+static func sum(array):
+	var x = 0.0
+	for element in array: x += element
+	return x
+
+func weighted_random(probabilities: Array):
+	# Treat the sum of the probabilities as an upper bound and check where we got 
+	var rnd_guess = int(randf() * sum(probabilities))
+	print(rnd_guess)
+
+	for i in range(len(probabilities)):
+		if rnd_guess < probabilities[i]: return i
+		rnd_guess -= probabilities[i]
+
+
 func grid_idx(x: int, y: int):
 	var out = y*N_CELLS + x
 	return out
@@ -157,6 +132,39 @@ func to_world(points: PackedVector2Array):
 		points[i] = rotate_by(points[i], WORLD_ROTATION, centre_point)
 	return points
 
+""" Works by drawing one of the two semicircle patterns. """ 
+func draw_semicircle_pattern(
+	centre: Vector2, 	# centre of the square
+	pattern_idx: int,   # which of the four legal patterns to draw
+	color: Color
+):
+	# Assign the rotations
+	var sc_centres
+	var sc_rotations
+	if pattern_idx == 0:
+		sc_centres = [centre + Vector2(0, 0.25*cell_length)]
+		sc_rotations = [0]
+	elif pattern_idx == 1:
+		sc_centres = [centre - Vector2(0, 0.25*cell_length), centre + Vector2(0, 0.25*cell_length)]
+		sc_rotations = [0, 0]
+	elif pattern_idx == 1:
+		sc_centres = [centre - Vector2(0, 0.25*cell_length), centre + Vector2(0, 0.25*cell_length)]
+		sc_rotations = [0, PI]
+	elif pattern_idx == 1:
+		sc_centres = [centre - Vector2(0, 0.25*cell_length), centre + Vector2(0, 0.25*cell_length)]
+		sc_rotations = [PI, 0]
+
+	# Choose the global rotation to apply - each of the four options has 25% chance for now
+	var base_rotation = int(randf()*4) * PI/2
+
+	for sc_idx in range(len(sc_centres)):
+		var sc_points = gen_semicircle_points(sc_centres[sc_idx], cell_length/2, sc_rotations[sc_idx])
+
+		# Rotate around the centre of the SQUARE by the base rotation
+		for idx in range(len(sc_points)): sc_points[idx] = rotate_by(sc_points[idx], base_rotation, centre)
+
+		draw_polygon(to_world(sc_points), [color])
+
 
 """
 draws a semicircle with specified center, radius, color, and orientation
@@ -166,7 +174,7 @@ draws a semicircle with specified center, radius, color, and orientation
 @param color: Color, fill color
 @param orientation: float (radians, default 0), rotation of the semicircle around its center
 """
-func semicircle_points(
+func gen_semicircle_points(
 	centre: Vector2,
 	radius: float,
 	orientation: float = 0
@@ -185,13 +193,19 @@ func semicircle_points(
 	
 	return points
 
-func draw_rotated_rect(origin: Vector2, size: Vector2, color: Color, angle: float, centre: Vector2):
-	var corners = [
+func gen_square_points(
+	origin: Vector2,
+	dimensions: Vector2,
+	angle: float = 0
+):
+	var points = [
 		origin,
-		origin + Vector2(size.x, 0),
-		origin + size,
-		origin + Vector2(0, size.y)
+		origin + Vector2(dimensions.x, 0),
+		origin + dimensions,
+		origin + Vector2(0, dimensions.y)
 	]
-	for i in range(corners.size()):
-		corners[i] = rotate_by(corners[i], angle, centre)
-	draw_polygon(corners, [color])
+
+	# Rotate the points
+	for idx in range(4): points[idx] = rotate_by(points[idx], angle, origin + dimensions/2)
+
+	return points
