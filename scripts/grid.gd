@@ -1,38 +1,38 @@
 extends Node2D
 
-# Declare variables
+# --- INITIALISE VARIABLES
+# Manually declared variables
 const N_CELLS: int = 12
 const WORLD_ROTATION: float = -PI/12
 const N_SEMICIRCLE_SEGMENTS: int = 64
 
-# Probabilities
-const P_IS_WHITE = 0.5
-const P_IS_VERTICAL = 0.5
-# Single edge, double stacked, circle, two facing inwards
-const P_PATTERNS_STARTING = [0.4, 0.2, 0.2, 0.2]
+# Event probabilities
+# Patterns: Single semicircle against edge, double stacked semcircles, circle, two semicircles facing inwards
+const P_PATTERNS_STARTING = [0.5, 0.2, 0.2, 0.2]  # initial probability of generating each pattern (first passthrough)
+const P_IS_WHITE = 0.5  # probability that a given row's background color is white
 
 # Calculated variables
-const EXTRA_DRAWN = max(1, N_CELLS/6) * 2  # should always be even
-const N_DRAWN_CELLS: int = N_CELLS + EXTRA_DRAWN
+const EXTRA_DRAWN = max(1, N_CELLS/6) * 2		# How many 'offscreen' cells to draw because of the tilt angle. Defaults to 1/3, minimum of 2. Must be even.
+const N_DRAWN_CELLS: int = N_CELLS + EXTRA_DRAWN  # Total n drawn cells including offscreen cells
 
 # Initialise variables
-var win_dim
-var grid_length: float
-var cell_length: float
-var centre_point: Vector2
+var win_dim: Vector2		# dimensions of the window
+var grid_length: float		# length (height and width) of the square grid
+var cell_length: float		# length (height and width) of a single cell
+var centre_point: Vector2	# centre-point of the entire grid
 
 var grid_squares = []
-var pattern_idxs = []
 
 
 # --- CLASS DEFINTIIONS ---
-class GridSquareAttributes:
-	var is_vertical: bool  # whether pattern_idxs within are vertically or horizontally aligned 
+## Contains attributes for each square of the grid.
+class GridSquare:
+	var centre: Vector2
 	var is_white: bool
 	var pattern_idx: int
 
-	func _init(is_vertical: bool, is_white: bool, pattern_idx):
-		self.is_vertical = is_vertical
+	func _init(centre: Vector2, is_white: bool, pattern_idx: int):
+		self.centre = centre
 		self.is_white = is_white
 		self.pattern_idx = pattern_idx
 
@@ -49,17 +49,26 @@ func _ready():
 		# All squares in the same row have the same color
 		var is_white = randf() < P_IS_WHITE
 
+		# Loop through columns, generate random starting pattern idx and create GridSquare class
 		for col in range(N_DRAWN_CELLS):
-			var is_vertical = randf() < P_IS_VERTICAL  # 0 is horizontal, 1 is vertical
-			grid_squares[row].append(GridSquareAttributes.new(
-				is_vertical,
+			# Get centre of the square, accounting for the half of extra drawn which have negative coordinates
+			var centre = Vector2(
+				(col-EXTRA_DRAWN/2)*cell_length + cell_length/2,
+				(row-EXTRA_DRAWN/2)*cell_length + cell_length/2
+			)
+
+			# Append a new GridSquare
+			grid_squares[row].append(GridSquare.new(
+				centre,
 				is_white,
 				weighted_random(P_PATTERNS_STARTING)
 			))
 
+	# Queue the first redraw of the scene
 	queue_redraw()
 
 func _draw():
+	# Update the viewport if it has changed on every redraw
 	var tmp_dim = get_viewport().get_visible_rect().size
 	if win_dim != tmp_dim:
 		win_dim = tmp_dim
@@ -69,8 +78,12 @@ func _draw():
 		# Update the buffer and centre
 		centre_point = Vector2(grid_length/2, grid_length/2)
 
-	# Draw all grid squares first
+
+	# Draw all grid squares and patterns to the screen
 	for row in range(N_DRAWN_CELLS):
+		# Keep a running count of pattern_idxs in that row
+		var counts = [0, 0, 0, 0]
+
 		for col in range(N_DRAWN_CELLS):
 			var g = grid_squares[row][col]
 
@@ -78,26 +91,27 @@ func _draw():
 			var origin = Vector2((col-EXTRA_DRAWN/2)*cell_length, (row-EXTRA_DRAWN/2)*cell_length)
 
 			# Define grid square attributes and draw it
-			var grid_color = to_color(g.is_white)
+			var grid_color = _to_color(g.is_white)
 			draw_polygon(
-				to_world(gen_square_points(origin, Vector2(cell_length, cell_length))),
+				_to_world(gen_square_points(origin, Vector2(cell_length, cell_length))),
 				[grid_color]
 			)
 
 			# --- GENERATE NEW PATTERN IDK ---
-			# We use a weighted sum of the squares on that row to generate the pidx
-			if (row in range(1, N_DRAWN_CELLS-1)) and (col in range(1, N_DRAWN_CELLS-1)):
-				var counts = [0, 0, 0, 0]
-				var squares = _gen_three_surrounding(row, col)
-				for square in squares: counts[grid_squares[square.x][square.y].pattern_idx] += 1
+			# The new pattern idx is determined by the three adjacent patterns in the row (x-1, x, x+1)
+			# Increment the counts by the next pattern_idx if not at end of row, and decrement by outdated one if not at start
+			if (col < N_DRAWN_CELLS - 1): counts[grid_squares[row][col+1].pattern_idx] += 1
+			if (col > 1): counts[grid_squares[row][col-2].pattern_idx] -= 1
 
-				draw_semicircle_pattern(
-					origin + Vector2(cell_length/2, cell_length/2),
-					weighted_random(counts),
-					to_color(!g.is_white)
-				)
+			# Draw semicircle_pattern with our counts as the new input to weighted random
+			_draw_semicircle_pattern(
+				origin + Vector2(cell_length/2, cell_length/2),
+				weighted_random(counts),
+				_to_color(!g.is_white)
+			)
 
-# Helper functions
+# --- HELPER FUNCTIONS ---
+# General helpers 
 static func sum(array):
 	var x = 0.0
 	for element in array: x += element
@@ -111,34 +125,23 @@ func weighted_random(probabilities: Array):
 		if rnd_guess < probabilities[i]: return i
 		rnd_guess -= probabilities[i]
 
+func rotate_by(point: Vector2, angle: float, centre: Vector2 = Vector2(0,0)):
+	return centre + (centre-point).rotated(angle)
 
-func grid_idx(x: int, y: int):
-	var out = y*N_CELLS + x
-	return out
 
-func to_color(x: bool):
+# Private helpers
+func _to_color(x: bool):
 	if x == true: return Color(1,1,1)
 	if x == false: return Color(0,0,0)
 	return null
 
-func to_grid_orientation(x: bool):
-	if x == true: return PI/2  # should be vertical
-	if x == false: return 0  # should be horizontal
-
-func to_sc_orientation(x: bool): 
-	if x == true: return 0  # should be vertical
-	if x == false: return PI  # should be horizontal
-
-func rotate_by(point: Vector2, angle: float, centre: Vector2 = Vector2(0,0)):
-	return centre + (centre-point).rotated(angle)
-
-func to_world(points: PackedVector2Array):
+func _to_world(points: PackedVector2Array):
 	for i in range(len(points)):
 		points[i] = rotate_by(points[i], WORLD_ROTATION, centre_point)
 	return points
 
 """ Works by drawing one of the two semicircle patterns. """ 
-func draw_semicircle_pattern(
+func _draw_semicircle_pattern(
 	centre: Vector2, 	# centre of the square
 	pattern_idx: int,   # which of the four legal patterns to draw
 	color: Color
@@ -168,9 +171,10 @@ func draw_semicircle_pattern(
 		# Rotate around the centre of the SQUARE by the base rotation
 		for idx in range(len(sc_points)): sc_points[idx] = rotate_by(sc_points[idx], base_rotation, centre)
 
-		draw_polygon(to_world(sc_points), [color])
+		draw_polygon(_to_world(sc_points), [color])
 
 
+# Shape drawing functions
 """
 draws a semicircle with specified center, radius, color, and orientation
 
@@ -218,24 +222,24 @@ func gen_square_points(
 
 
 # Unused structs
-func _gen_nine_surrounding(row, col):
-	# Generate cardinals and diagonals
-	return [
-		Vector2i(row-1, col-1), Vector2i(row-1, col), Vector2i(row-1, col+1),
-		Vector2i(row,   col-1), Vector2i(row,   col), Vector2i(row,   col+1),
-		Vector2i(row+1, col-1), Vector2i(row+1, col), Vector2i(row+1, col+1),
-	]
+# func _gen_nine_surrounding(row, col):
+# 	# Generate cardinals and diagonals
+# 	return [
+# 		Vector2i(row-1, col-1), Vector2i(row-1, col), Vector2i(row-1, col+1),
+# 		Vector2i(row,   col-1), Vector2i(row,   col), Vector2i(row,   col+1),
+# 		Vector2i(row+1, col-1), Vector2i(row+1, col), Vector2i(row+1, col+1),
+# 	]
 
-func _gen_five_surrounding(row, col):
-	# Only generate on the cardinals
-	return [
-								Vector2i(row-1, col),
-		Vector2i(row,   col-1), Vector2i(row,   col), Vector2i(row,   col+1),
-								Vector2i(row+1, col),
-	]
+# func _gen_five_surrounding(row, col):
+# 	# Only generate on the cardinals
+# 	return [
+# 								Vector2i(row-1, col),
+# 		Vector2i(row,   col-1), Vector2i(row,   col), Vector2i(row,   col+1),
+# 								Vector2i(row+1, col),
+# 	]
 
-func _gen_three_surrounding(row, col):
-	# Only generate on the same row
-	return [
-		Vector2i(row,   col-1), Vector2i(row,   col), Vector2i(row,   col+1),
-	]
+# func _gen_three_surrounding(row, col):
+# 	# Only generate on the same row
+# 	return [
+# 		Vector2i(row,   col-1), Vector2i(row,   col), Vector2i(row,   col+1),
+# 	]
