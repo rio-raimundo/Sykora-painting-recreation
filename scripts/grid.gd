@@ -2,7 +2,7 @@ extends Node2D
 
 # --- INITIALISE VARIABLES
 # Manually declared variables
-const N_CELLS: int = 5
+const N_CELLS: int = 12
 const WORLD_ROTATION: float = -PI/12
 const N_SEMICIRCLE_SEGMENTS: int = 64
 

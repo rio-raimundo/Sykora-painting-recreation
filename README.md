@@ -3,6 +3,11 @@
 - The painting that this project aims to recreate is not the exact one linked, but one that I saw at the Museum of Applied Arts in Cologne, Germany. 
 - It is my first Godot project.
 
+## Examples
+<p align="center">
+  <img width="300" src="assets\readme-image.png">
+</p>
+
 ## Controls
 - The rendered 'painting' consists of a grid of semicircles overlaid on alternating black and white lines. Many aspects of the painting are randomised, including the placement and thickness of the lines and the placements and rotations of the semicircles.
 - The painting can be interacted with by pressing various hotkeys:
