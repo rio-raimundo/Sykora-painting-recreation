@@ -23,6 +23,7 @@ func return_pattern(pattern_name: int):
 	if pattern_name == PatternNames.SEMICIRCLES: return _handle_semicircles()
 
 
+
 # --- SEMICIRCLE GENERATION ---
 func _handle_semicircles():
 	# We initialise variables related to the drawing of semicircle patterns here
@@ -58,14 +59,13 @@ func _draw_semicircle_pattern(node, g: GridSquare, world_rotation, n_segments_to
 			sc_rotations = [PI, 0]
 
 	for sc_idx in range(len(sc_centres)):
-		var points = gen_semicircle_points(sc_centres[sc_idx], g.size/2, sc_rotations[sc_idx], n_segments_to_draw)
+		var points = _gen_semicircle_points(sc_centres[sc_idx], g.size/2, sc_rotations[sc_idx], n_segments_to_draw)
 
 		# Rotate around the centre of the SQUARE by the base rotation
 		for idx in range(len(points)): points[idx] = Helpers.rotate_by(points[idx], g.orientation + world_rotation, g.position)
 		node.draw_colored_polygon(points, Helpers.to_color(!g.is_white))
 
-
-func gen_semicircle_points(
+func _gen_semicircle_points(
 	centre: Vector2,
 	radius: float,
 	orientation: float,
