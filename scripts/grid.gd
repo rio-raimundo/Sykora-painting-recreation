@@ -6,6 +6,8 @@ const N_CELLS: int = 12
 const WORLD_ROTATION: float = -PI/12
 const N_SEMICIRCLE_SEGMENTS: int = 64
 
+const GridSquareScene = preload("res://scenes/GridSquare.tscn")
+
 # Event probabilities
 # Patterns: Single semicircle against edge, double stacked semcircles, circle, two semicircles facing inwards
 const P_PATTERNS_STARTING = [0.5, 0.1, 0.2, 0.2]  # initial probability of generating each pattern (first passthrough)
@@ -27,28 +29,6 @@ var centre_point: Vector2	# centre-point of the entire grid
 var grid_squares = []
 
 
-# --- CLASS DEFINTIIONS ---
-## Contains attributes for each square of the grid.
-class GridSquare:
-	var centre: Vector2
-	var is_white: bool
-	var initial_pattern_idx: int
-	var orientation: float
-
-	var current_pattern_idx: int = 0
-
-	func _init(
-		centre: Vector2,
-		is_white: bool = false,
-		initial_pattern_idx: int = 0,
-		orientation: float = 0,
-	):
-		self.centre = centre
-		self.is_white = is_white
-		self.initial_pattern_idx = initial_pattern_idx
-		self.orientation = orientation
-
-
 # --- MAIN FUNCTIONS ---
 func _ready():
 	# Seed the random seed generator with a unique value
@@ -59,12 +39,17 @@ func _ready():
 	for row in range(N_DRAWN_CELLS):
 		grid_squares.append([])
 		for col in range(N_DRAWN_CELLS):
-			# Centre never changes so we can initialise it
-			var centre = Vector2(
+			# Centre position never changes so we can initialise it
+			var position = Vector2(
 				(col-EXTRA_DRAWN/2)*cell_length + cell_length/2,
 				(row-EXTRA_DRAWN/2)*cell_length + cell_length/2
 			)
-			grid_squares[row].append(GridSquare.new(centre))
+
+			# Initialise our grid square scene as a child and call the setup function
+			var instance = GridSquareScene.instantiate()
+			instance.setup(position)
+			add_child(instance)
+			grid_squares[row].append(instance)
 
 	# Generate the grid squares and semicircles and queue the first redraw of the scene
 	_generate_grid_squares()
@@ -128,14 +113,14 @@ func _draw():
 
 			# Define grid square attributes and draw it
 			draw_colored_polygon(
-				_to_world(gen_square_points(g.centre, Vector2(cell_length, cell_length))),
+				_to_world(gen_square_points(g.position, Vector2(cell_length, cell_length))),
 				_to_color(g.is_white)
 			)
 
 			# Draw semicircles using current pattern
 			if show_circles: 
 				_draw_semicircle_pattern(
-					g.centre,
+					g.position,
 					g.current_pattern_idx,
 					g.orientation,
 					_to_color(!g.is_white)
