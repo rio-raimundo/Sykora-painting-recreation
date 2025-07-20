@@ -26,7 +26,7 @@ var grid_length: float		# length (height and width) of the square grid
 var cell_length: float		# length (height and width) of a single cell
 var centre_point: Vector2	# centre-point of the entire grid
 
-var grid_squares = []
+var grid_squares = []  # array over all squares
 
 
 # --- MAIN FUNCTIONS ---
@@ -40,11 +40,11 @@ func _ready():
 		grid_squares.append([])
 		for col in range(N_DRAWN_CELLS):
 			# Centre position never changes so we can initialise it
-
 			var position = _to_world([Vector2(
 				(col-EXTRA_DRAWN/2)*cell_length + cell_length/2,
 				(row-EXTRA_DRAWN/2)*cell_length + cell_length/2
 			)])
+
 			# Generate points RELATIVE to a centre of (0, 0) to pass in
 			var points = gen_square_points(
 				Vector2(cell_length, cell_length),
@@ -70,10 +70,21 @@ func _on_grid_square_clicked(
 ):
 	var g = grid_squares[id[0]][id[1]]
 
+	# Left clicks cycle through patterns
 	if button_index == MOUSE_BUTTON_LEFT:
 		g.current_pattern_idx = (g.current_pattern_idx + 1) % 4
+
+	# Right clicks cycle through the color of a line
+	# So we have to get all the squares in that line
 	elif button_index == MOUSE_BUTTON_RIGHT:
+		for square in grid_squares[id[0]]:
+			square.is_white = !square.is_white
+
+	# Scrolling handles the rotation
+	elif button_index == MOUSE_BUTTON_WHEEL_UP:
 		g.orientation = fmod(g.orientation + PI/2, 2 * PI)
+	elif button_index == MOUSE_BUTTON_WHEEL_DOWN:
+		g.orientation = fmod(g.orientation - PI/2, 2 * PI)
 
 	queue_redraw()
 

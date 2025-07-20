@@ -17,4 +17,5 @@
 	4. When rendering the semicircle layer, patterns for each square are initially chosen at random. Then, they are 'rechosen' based only on the nearby patterns in that row. This creates 'stickiness' to the pattern generation, leading to the appearance of more higher-order structure. Pressing `S` will regenerate only this second iteration, leading to small variations in the shapes layer.
 - Additionally, clicking the squares of the painting will also interact with it:
 	1. Left clicking a square will cycle through each of the four patterns (more pattern combinations than this are possible, but are not present in the original painting, so I have stuck to the four used).
-	2. Right clicking on a square will rotate the current pattern by 90 degrees.
+	2. Right clicking on a square will change the color of the underlying line, from black to white and vice versa.
+	3. Scrolling while hovering over a square will rotate the current pattern by 90 degrees in either direction (depending on the direction of the scroll)
