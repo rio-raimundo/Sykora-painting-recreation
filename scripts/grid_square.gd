@@ -1,7 +1,7 @@
 extends Area2D
 
 # Not sure exactly how this works yet
-signal square_clicked(id: Vector2i)
+signal square_clicked(id: Vector2i, button_index)
 
 
 # Initialise variables
@@ -28,7 +28,7 @@ func setup(
 	self.position = position
 	self.is_white = is_white
 	self.initial_pattern_idx = initial_pattern_idx
-	self.orientation = orientation
+	self.orientation = orientation  # TODO just integrate the world orientation into this maybe?
 
 	# Get absolute points for self
 	var abs_points = []
@@ -42,5 +42,5 @@ func setup(
 
 # This function has been linked with a 'signal' to respond to input events for that object
 func _on_input_event(viewport: Node, event: InputEvent, shape_idx: int) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		square_clicked.emit(self.id)
+	if event is InputEventMouseButton and event.pressed:
+		square_clicked.emit(self.id, event.button_index)

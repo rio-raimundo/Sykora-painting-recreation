@@ -2,7 +2,7 @@ extends Node2D
 
 # --- INITIALISE VARIABLES
 # Manually declared variables
-const N_CELLS: int = 12
+const N_CELLS: int = 5
 const WORLD_ROTATION: float = -PI/12
 const N_SEMICIRCLE_SEGMENTS: int = 64
 
@@ -65,10 +65,17 @@ func _ready():
 	queue_redraw()
 
 func _on_grid_square_clicked(
-	id: Vector2i
+	id: Vector2i,
+	button_index
 ):
 	var g = grid_squares[id[0]][id[1]]
-	print(g.id)
+
+	if button_index == MOUSE_BUTTON_LEFT:
+		g.current_pattern_idx = (g.current_pattern_idx + 1) % 4
+	elif button_index == MOUSE_BUTTON_RIGHT:
+		g.orientation = fmod(g.orientation + PI/2, 2 * PI)
+
+	queue_redraw()
 
 func _generate_grid_squares(
 	gen_color: bool = true,
@@ -214,10 +221,10 @@ func _draw_semicircle_pattern(
 	var sc_rotations
 	if pattern_idx == 0:
 		sc_centres = [centre + Vector2(0, 0.25*cell_length)]
-		sc_rotations = [0]
+		sc_rotations = [PI]  # needs to be PI to be against edge, not entirely sure why
 	elif pattern_idx == 1:
 		sc_centres = [centre - Vector2(0, 0.25*cell_length), centre + Vector2(0, 0.25*cell_length)]
-		sc_rotations = [0, 0]
+		sc_rotations = [PI, PI]
 	elif pattern_idx == 2:
 		sc_centres = [centre - Vector2(0, 0.25*cell_length), centre + Vector2(0, 0.25*cell_length)]
 		sc_rotations = [0, PI]
