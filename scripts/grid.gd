@@ -15,6 +15,9 @@ const P_IS_WHITE = 0.5  # probability that a given row's background color is whi
 const EXTRA_DRAWN = max(1, N_CELLS/6) * 2		# How many 'offscreen' cells to draw because of the tilt angle. Defaults to 1/3, minimum of 2. Must be even.
 const N_DRAWN_CELLS: int = N_CELLS + EXTRA_DRAWN  # Total n drawn cells including offscreen cells
 
+# World states
+var show_circles: bool = true
+
 # Initialise variables
 var win_dim: Vector2		# dimensions of the window
 var grid_length: float		# length (height and width) of the square grid
@@ -29,45 +32,75 @@ var grid_squares = []
 class GridSquare:
 	var centre: Vector2
 	var is_white: bool
-	var pattern_idx: int
+	var initial_pattern_idx: int
+	var current_pattern_idx: int = 0
 
-	func _init(centre: Vector2, is_white: bool, pattern_idx: int):
+	func _init(
+		centre: Vector2,
+		is_white: bool = false,
+		initial_pattern_idx: int = 0
+	):
 		self.centre = centre
 		self.is_white = is_white
-		self.pattern_idx = pattern_idx
+		self.initial_pattern_idx = initial_pattern_idx
 
 
 # --- MAIN FUNCTIONS ---
 func _ready():
 	# Seed the random seed generator with a unique value
 	randomize()
+	_update_viewport()
 
-	# Randomly generate our grid square colors
+	# Initialise grid_squares object
 	for row in range(N_DRAWN_CELLS):
 		grid_squares.append([])
+		for col in range(N_DRAWN_CELLS):
+			# Centre never changes so we can initialise it
+			var centre = Vector2(
+				(col-EXTRA_DRAWN/2)*cell_length + cell_length/2,
+				(row-EXTRA_DRAWN/2)*cell_length + cell_length/2
+			)
+			grid_squares[row].append(GridSquare.new(centre))
 
+	# Generate the grid squares and semicircles and queue the first redraw of the scene
+	_generate_grid_squares()
+	_generate_semicircles()
+	queue_redraw()
+
+func _generate_grid_squares():
+	# Randomly generate our grid square colors
+	for row in range(N_DRAWN_CELLS):
 		# All squares in the same row have the same color
 		var is_white = randf() < P_IS_WHITE
 
 		# Loop through columns, generate random starting pattern idx and create GridSquare class
 		for col in range(N_DRAWN_CELLS):
-			# Get centre of the square, accounting for the half of extra drawn which have negative coordinates
-			var centre = Vector2(
-				(col-EXTRA_DRAWN/2)*cell_length + cell_length/2,
-				(row-EXTRA_DRAWN/2)*cell_length + cell_length/2
-			)
-
-			# Append a new GridSquare
-			grid_squares[row].append(GridSquare.new(
-				centre,
+			# Populate the grid_square
+			grid_squares[row][col] = GridSquare.new(
+				grid_squares[row][col].centre,  # centre never changes
 				is_white,
 				weighted_random(P_PATTERNS_STARTING)
-			))
+			)
 
-	# Queue the first redraw of the scene
-	queue_redraw()
+func _generate_semicircles():
+	# Draw all grid squares and patterns to the screen
+	for row in range(N_DRAWN_CELLS):
+		# Keep a running count of pattern_idxs in that row
+		var counts = [0, 0, 0, 0]
 
-func _draw():
+		for col in range(N_DRAWN_CELLS):
+			var g = grid_squares[row][col]
+
+			# --- GENERATE NEW PATTERN IDK ---
+			# The new pattern idx is determined by the three adjacent patterns in the row (x-1, x, x+1)
+			# Increment the counts by the next pattern_idx if not at end of row, and decrement by outdated one if not at start
+			if (col < N_DRAWN_CELLS - 1): counts[grid_squares[row][col+1].initial_pattern_idx] += 1
+			if (col > 1): counts[grid_squares[row][col-2].initial_pattern_idx] -= 1
+
+			# Update the current pattern idx of the grid square
+			g.current_pattern_idx = weighted_random(counts)
+
+func _update_viewport():
 	# Update the viewport if it has changed on every redraw
 	var tmp_dim = get_viewport().get_visible_rect().size
 	if win_dim != tmp_dim:
@@ -78,37 +111,41 @@ func _draw():
 		# Update the buffer and centre
 		centre_point = Vector2(grid_length/2, grid_length/2)
 
+func _draw():
+	_update_viewport()
 
 	# Draw all grid squares and patterns to the screen
 	for row in range(N_DRAWN_CELLS):
-		# Keep a running count of pattern_idxs in that row
-		var counts = [0, 0, 0, 0]
-
 		for col in range(N_DRAWN_CELLS):
 			var g = grid_squares[row][col]
 
-			# Define x and y of top left corner
-			var origin = Vector2((col-EXTRA_DRAWN/2)*cell_length, (row-EXTRA_DRAWN/2)*cell_length)
-
 			# Define grid square attributes and draw it
-			var grid_color = _to_color(g.is_white)
-			draw_polygon(
-				_to_world(gen_square_points(origin, Vector2(cell_length, cell_length))),
-				[grid_color]
+			draw_colored_polygon(
+				_to_world(gen_square_points(g.centre, Vector2(cell_length, cell_length))),
+				_to_color(g.is_white)
 			)
 
-			# --- GENERATE NEW PATTERN IDK ---
-			# The new pattern idx is determined by the three adjacent patterns in the row (x-1, x, x+1)
-			# Increment the counts by the next pattern_idx if not at end of row, and decrement by outdated one if not at start
-			if (col < N_DRAWN_CELLS - 1): counts[grid_squares[row][col+1].pattern_idx] += 1
-			if (col > 1): counts[grid_squares[row][col-2].pattern_idx] -= 1
+			# Draw semicircles using current pattern
+			if show_circles: 
+				_draw_semicircle_pattern(
+					g.centre,
+					g.current_pattern_idx,
+					_to_color(!g.is_white)
+				)
 
-			# Draw semicircle_pattern with our counts as the new input to weighted random
-			_draw_semicircle_pattern(
-				origin + Vector2(cell_length/2, cell_length/2),
-				weighted_random(counts),
-				_to_color(!g.is_white)
-			)
+# Redraw on R key presses
+func _input(event):
+	print('got here')
+	if event is InputEventKey:
+		# If R, reset the circle generation
+		if event.keycode == KEY_R and event.is_pressed() and not event.is_echo():
+			queue_redraw()
+
+		# If H, toggle hide/show circles
+		if event.keycode == KEY_H and event.is_pressed() and not event.is_echo():
+			show_circles = !show_circles
+			queue_redraw()
+
 
 # --- HELPER FUNCTIONS ---
 # General helpers 
@@ -203,20 +240,19 @@ func gen_semicircle_points(
 	return points
 
 func gen_square_points(
-	origin: Vector2,
+	centre: Vector2,
 	dimensions: Vector2,
 	angle: float = 0
 ):
 	var points = [
-		origin,
-		origin + Vector2(dimensions.x, 0),
-		origin + dimensions,
-		origin + Vector2(0, dimensions.y)
+		centre + Vector2(-dimensions.x/2, -dimensions.y/2),
+		centre + Vector2(+dimensions.x/2, -dimensions.y/2),
+		centre + Vector2(+dimensions.x/2, +dimensions.y/2),
+		centre + Vector2(-dimensions.x/2, +dimensions.y/2),
 	]
 
-	# Rotate the points
-	for idx in range(4): points[idx] = rotate_by(points[idx], angle, origin + dimensions/2)
-
+	# Rotate the points and return
+	for idx in range(4): points[idx] = rotate_by(points[idx], angle, centre)
 	return points
 
 
