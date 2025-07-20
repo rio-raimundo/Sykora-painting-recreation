@@ -11,7 +11,7 @@ class Point:
 		self.y = y
 
 class GridSquareAttributes:
-	var is_vertical: bool  # whether semicircles within are vertically or horizontally aligned 
+	var is_vertical: bool  # whether pattern_idxs within are vertically or horizontally aligned 
 	var is_white: bool
 
 	func _init(is_vertical: bool, is_white: bool):
@@ -33,17 +33,16 @@ const PROB_WHITE_SQUARE = 0.5
 const PROB_SEMICIRCLE = 0.5
 const PROB_VERTICAL = 0.5
 # Single edge, double stacked, circle, two facing inwards
-const SEMICIRCLE_PATTERN_PROBABILITIES = [0.1, 0.3, 0.3, 0.3]
+const SEMICIRCLE_PATTERN_PROBABILITIES = [0.4, 0.2, 0.2, 0.2]
 
 # Initialise variables
 var win_dim
 var grid_length: float
 var cell_length: float
+var centre_point: Vector2
 
 var grid_squares = []
-var semicircles = []
-var buffer: Vector2 = Vector2(0,0)
-var centre_point: Vector2
+var pattern_idxs = []
 
 func _ready():
 	# Seed the random seed generator with a unique value
@@ -52,10 +51,12 @@ func _ready():
 	# Randomly generate our grid square colors
 	for x in range(N_DRAWN_CELLS):
 		grid_squares.append([])
+		pattern_idxs.append([])
 		for y in range(N_DRAWN_CELLS):
 			var is_vertical = randf() < PROB_VERTICAL  # 0 is horizontal, 1 is vertical
 			var is_white = randf() < PROB_WHITE_SQUARE
 			grid_squares[x].append(GridSquareAttributes.new(is_vertical, is_white))
+			pattern_idxs[x].append([])
 
 	queue_redraw()
 
@@ -67,7 +68,7 @@ func _draw():
 		cell_length = grid_length / N_CELLS
 
 		# Update the buffer and centre
-		centre_point = buffer + Vector2(grid_length/2, grid_length/2)
+		centre_point = Vector2(grid_length/2, grid_length/2)
 
 	# Draw all grid squares first
 	for x in range(N_DRAWN_CELLS):
@@ -85,10 +86,36 @@ func _draw():
 			)
 
 			# For each grid, we pick one of the semicircle patterns to draw over the top
+			# On the first passthrough we just generate them randomly and save to the pattern idxs. 
+			pattern_idxs[x][y] = weighted_random(SEMICIRCLE_PATTERN_PROBABILITIES)
 
-			# TODO Figure out this generation
-			var pattern_idx = weighted_random(SEMICIRCLE_PATTERN_PROBABILITIES)
+	for x in range(1, N_DRAWN_CELLS-1):
+		for y in range(1, N_DRAWN_CELLS-1):
+			var g = grid_squares[x][y]
+			var origin = Vector2((x-EXTRA_DRAWN/2)*cell_length, (y-EXTRA_DRAWN/2)*cell_length)
+
+			# Find the new pattern idx by using a weighted sum of the surrounding nine squares 
+			var squares = [
+				Vector2(x-1, y-1), Vector2(x-1, y), Vector2(x-1, y+1),
+				Vector2(x, y-1), Vector2(x, y), Vector2(x, y+1),
+				Vector2(x+1, y-1), Vector2(x+1, y), Vector2(x+1, y+1),
+			]
+			var pidxs = []
+			for square in squares:
+				# print(pattern_idxs[square.x][square.y])
+				pidxs.append(pattern_idxs[int(square.x)][int(square.y)])
+			
+
+			# Count how many of each idx we have and store it in the idx
+			var counts = []; for idx in range(4): counts.append(0)
+			for val in pidxs: counts[val] += 1
+
+			# print(counts)
+			var pattern_idx = weighted_random(counts)
+			# print("(%d, %d) = %d" % [x, y, pattern_idx])
 			draw_semicircle_pattern(origin + Vector2(cell_length/2, cell_length/2), pattern_idx, to_color(!g.is_white))
+
+	# Do a second passthrough of pattern_idxs, using the 
 
 
 # Helper functions
@@ -99,8 +126,7 @@ static func sum(array):
 
 func weighted_random(probabilities: Array):
 	# Treat the sum of the probabilities as an upper bound and check where we got 
-	var rnd_guess = int(randf() * sum(probabilities))
-	print(rnd_guess)
+	var rnd_guess = randf() * sum(probabilities)
 
 	for i in range(len(probabilities)):
 		if rnd_guess < probabilities[i]: return i
@@ -147,10 +173,10 @@ func draw_semicircle_pattern(
 	elif pattern_idx == 1:
 		sc_centres = [centre - Vector2(0, 0.25*cell_length), centre + Vector2(0, 0.25*cell_length)]
 		sc_rotations = [0, 0]
-	elif pattern_idx == 1:
+	elif pattern_idx == 2:
 		sc_centres = [centre - Vector2(0, 0.25*cell_length), centre + Vector2(0, 0.25*cell_length)]
 		sc_rotations = [0, PI]
-	elif pattern_idx == 1:
+	elif pattern_idx == 3:
 		sc_centres = [centre - Vector2(0, 0.25*cell_length), centre + Vector2(0, 0.25*cell_length)]
 		sc_rotations = [PI, 0]
 
