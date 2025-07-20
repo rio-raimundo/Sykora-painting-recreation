@@ -15,6 +15,11 @@ run/main_scene="uid://d0pcaxf2op543"
 config/features=PackedStringArray("4.4", "Forward Plus")
 config/icon="res://icon.svg"
 
+[autoload]
+
+PatternsList="*res://scripts/patterns_list.gd"
+Helpers="*res://scripts/general_helpers.gd"
+
 [debug]
 
 gdscript/warnings/shadowed_variable=0
