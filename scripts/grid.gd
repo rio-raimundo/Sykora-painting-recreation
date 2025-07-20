@@ -6,7 +6,7 @@ const N_CELLS: int = 12
 const WORLD_ROTATION: float = -PI/12
 const N_SEMICIRCLE_SEGMENTS: int = 64
 
-const GridSquareScene = preload("res://scenes/GridSquare.tscn")
+const GridSquareScene = preload("res://scenes/grid_square.tscn")
 
 # Event probabilities
 # Patterns: Single semicircle against edge, double stacked semcircles, circle, two semicircles facing inwards
@@ -40,14 +40,22 @@ func _ready():
 		grid_squares.append([])
 		for col in range(N_DRAWN_CELLS):
 			# Centre position never changes so we can initialise it
-			var position = Vector2(
+
+			var position = _to_world([Vector2(
 				(col-EXTRA_DRAWN/2)*cell_length + cell_length/2,
 				(row-EXTRA_DRAWN/2)*cell_length + cell_length/2
+			)])
+			# Generate points RELATIVE to a centre of (0, 0) to pass in
+			var points = gen_square_points(
+				Vector2(cell_length, cell_length),
+				Vector2(0, 0),  # centre
+				WORLD_ROTATION,  # rotate by world rotation
 			)
 
 			# Initialise our grid square scene as a child and call the setup function
 			var instance = GridSquareScene.instantiate()
-			instance.setup(position)
+			instance.setup(Vector2i(row, col), position[0], points)
+			instance.square_clicked.connect(_on_grid_square_clicked)
 			add_child(instance)
 			grid_squares[row].append(instance)
 
@@ -55,6 +63,12 @@ func _ready():
 	_generate_grid_squares()
 	_generate_semicircles()
 	queue_redraw()
+
+func _on_grid_square_clicked(
+	id: Vector2i
+):
+	var g = grid_squares[id[0]][id[1]]
+	print(g.id)
 
 func _generate_grid_squares(
 	gen_color: bool = true,
@@ -113,7 +127,7 @@ func _draw():
 
 			# Define grid square attributes and draw it
 			draw_colored_polygon(
-				_to_world(gen_square_points(g.position, Vector2(cell_length, cell_length))),
+				g.points,  # already in world coordinates
 				_to_color(g.is_white)
 			)
 
@@ -122,7 +136,7 @@ func _draw():
 				_draw_semicircle_pattern(
 					g.position,
 					g.current_pattern_idx,
-					g.orientation,
+					g.orientation + WORLD_ROTATION,
 					_to_color(!g.is_white)
 				)
 
@@ -174,7 +188,7 @@ func weighted_random(probabilities: Array):
 		rnd_guess -= probabilities[i]
 
 func rotate_by(point: Vector2, angle: float, centre: Vector2 = Vector2(0,0)):
-	return centre + (centre-point).rotated(angle)
+	return centre + (point-centre).rotated(angle)
 
 
 # Private helpers
@@ -217,7 +231,7 @@ func _draw_semicircle_pattern(
 		# Rotate around the centre of the SQUARE by the base rotation
 		for idx in range(len(sc_points)): sc_points[idx] = rotate_by(sc_points[idx], square_orientation, centre)
 
-		draw_polygon(_to_world(sc_points), [color])
+		draw_polygon(sc_points, [color])
 
 
 # Shape drawing functions
@@ -249,8 +263,8 @@ func gen_semicircle_points(
 	return points
 
 func gen_square_points(
-	centre: Vector2,
 	dimensions: Vector2,
+	centre: Vector2 = Vector2(0, 0),
 	angle: float = 0
 ):
 	var points = [

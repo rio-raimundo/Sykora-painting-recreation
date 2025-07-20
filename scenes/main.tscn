@@ -1,9 +1,9 @@
 [gd_scene load_steps=3 format=3 uid="uid://d0pcaxf2op543"]
 
 [ext_resource type="Script" uid="uid://caqbfqfqy5ojt" path="res://scripts/grid.gd" id="1_o5qli"]
-[ext_resource type="PackedScene" uid="uid://qoit2p4su6ph" path="res://scenes/GridSquare.tscn" id="2_sugp2"]
+[ext_resource type="PackedScene" uid="uid://cyjwv31o2mt27" path="res://scenes/grid_square.tscn" id="2_0wfyh"]
 
 [node name="GridHandler" type="Node2D"]
 script = ExtResource("1_o5qli")
 
-[node name="GridSquare" parent="." instance=ExtResource("2_sugp2")]
+[node name="GridSquare" parent="." instance=ExtResource("2_0wfyh")]
