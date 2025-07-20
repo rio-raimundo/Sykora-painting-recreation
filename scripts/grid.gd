@@ -1,39 +1,19 @@
-# TODO HAVE THE PATTERN IDX BE WEIGHTED BY NEARBY TILES - 'sticky'
-
 extends Node2D
-
-class Point:
-	var x: float
-	var y: float
-
-	func _init(x: float, y: float):
-		self.x = x
-		self.y = y
-
-class GridSquareAttributes:
-	var is_vertical: bool  # whether pattern_idxs within are vertically or horizontally aligned 
-	var is_white: bool
-
-	func _init(is_vertical: bool, is_white: bool):
-		self.is_vertical = is_vertical
-		self.is_white = is_white
 
 # Declare variables
 const N_CELLS: int = 12
-const N_SEMICIRCLE_SEGMENTS: int = 64
 const WORLD_ROTATION: float = -PI/12
+const N_SEMICIRCLE_SEGMENTS: int = 64
+
+# Probabilities
+const P_IS_WHITE = 0.5
+const P_IS_VERTICAL = 0.5
+# Single edge, double stacked, circle, two facing inwards
+const P_PATTERNS_STARTING = [0.4, 0.2, 0.2, 0.2]
 
 # Calculated variables
 const EXTRA_DRAWN = max(1, N_CELLS/6) * 2  # should always be even
 const N_DRAWN_CELLS: int = N_CELLS + EXTRA_DRAWN
-const TOTAL_CELLS: int = N_CELLS**2
-
-# Probabilities
-const PROB_WHITE_SQUARE = 0.5
-const PROB_SEMICIRCLE = 0.5
-const PROB_VERTICAL = 0.5
-# Single edge, double stacked, circle, two facing inwards
-const SEMICIRCLE_PATTERN_PROBABILITIES = [0.4, 0.2, 0.2, 0.2]
 
 # Initialise variables
 var win_dim
@@ -44,19 +24,38 @@ var centre_point: Vector2
 var grid_squares = []
 var pattern_idxs = []
 
+
+# --- CLASS DEFINTIIONS ---
+class GridSquareAttributes:
+	var is_vertical: bool  # whether pattern_idxs within are vertically or horizontally aligned 
+	var is_white: bool
+	var pattern_idx: int
+
+	func _init(is_vertical: bool, is_white: bool, pattern_idx):
+		self.is_vertical = is_vertical
+		self.is_white = is_white
+		self.pattern_idx = pattern_idx
+
+
+# --- MAIN FUNCTIONS ---
 func _ready():
 	# Seed the random seed generator with a unique value
 	randomize()
 
 	# Randomly generate our grid square colors
-	for x in range(N_DRAWN_CELLS):
+	for row in range(N_DRAWN_CELLS):
 		grid_squares.append([])
-		pattern_idxs.append([])
-		for y in range(N_DRAWN_CELLS):
-			var is_vertical = randf() < PROB_VERTICAL  # 0 is horizontal, 1 is vertical
-			var is_white = randf() < PROB_WHITE_SQUARE
-			grid_squares[x].append(GridSquareAttributes.new(is_vertical, is_white))
-			pattern_idxs[x].append([])
+
+		# All squares in the same row have the same color
+		var is_white = randf() < P_IS_WHITE
+
+		for col in range(N_DRAWN_CELLS):
+			var is_vertical = randf() < P_IS_VERTICAL  # 0 is horizontal, 1 is vertical
+			grid_squares[row].append(GridSquareAttributes.new(
+				is_vertical,
+				is_white,
+				weighted_random(P_PATTERNS_STARTING)
+			))
 
 	queue_redraw()
 
@@ -71,12 +70,12 @@ func _draw():
 		centre_point = Vector2(grid_length/2, grid_length/2)
 
 	# Draw all grid squares first
-	for x in range(N_DRAWN_CELLS):
-		for y in range(N_DRAWN_CELLS):
-			var g = grid_squares[x][y]
+	for row in range(N_DRAWN_CELLS):
+		for col in range(N_DRAWN_CELLS):
+			var g = grid_squares[row][col]
 
 			# Define x and y of top left corner
-			var origin = Vector2((x-EXTRA_DRAWN/2)*cell_length, (y-EXTRA_DRAWN/2)*cell_length)
+			var origin = Vector2((col-EXTRA_DRAWN/2)*cell_length, (row-EXTRA_DRAWN/2)*cell_length)
 
 			# Define grid square attributes and draw it
 			var grid_color = to_color(g.is_white)
@@ -85,38 +84,18 @@ func _draw():
 				[grid_color]
 			)
 
-			# For each grid, we pick one of the semicircle patterns to draw over the top
-			# On the first passthrough we just generate them randomly and save to the pattern idxs. 
-			pattern_idxs[x][y] = weighted_random(SEMICIRCLE_PATTERN_PROBABILITIES)
+			# --- GENERATE NEW PATTERN IDK ---
+			# We use a weighted sum of the squares on that row to generate the pidx
+			if (row in range(1, N_DRAWN_CELLS-1)) and (col in range(1, N_DRAWN_CELLS-1)):
+				var counts = [0, 0, 0, 0]
+				var squares = _gen_three_surrounding(row, col)
+				for square in squares: counts[grid_squares[square.x][square.y].pattern_idx] += 1
 
-	for x in range(1, N_DRAWN_CELLS-1):
-		for y in range(1, N_DRAWN_CELLS-1):
-			var g = grid_squares[x][y]
-			var origin = Vector2((x-EXTRA_DRAWN/2)*cell_length, (y-EXTRA_DRAWN/2)*cell_length)
-
-			# Find the new pattern idx by using a weighted sum of the surrounding nine squares 
-			var squares = [
-				Vector2(x-1, y-1), Vector2(x-1, y), Vector2(x-1, y+1),
-				Vector2(x, y-1), Vector2(x, y), Vector2(x, y+1),
-				Vector2(x+1, y-1), Vector2(x+1, y), Vector2(x+1, y+1),
-			]
-			var pidxs = []
-			for square in squares:
-				# print(pattern_idxs[square.x][square.y])
-				pidxs.append(pattern_idxs[int(square.x)][int(square.y)])
-			
-
-			# Count how many of each idx we have and store it in the idx
-			var counts = []; for idx in range(4): counts.append(0)
-			for val in pidxs: counts[val] += 1
-
-			# print(counts)
-			var pattern_idx = weighted_random(counts)
-			# print("(%d, %d) = %d" % [x, y, pattern_idx])
-			draw_semicircle_pattern(origin + Vector2(cell_length/2, cell_length/2), pattern_idx, to_color(!g.is_white))
-
-	# Do a second passthrough of pattern_idxs, using the 
-
+				draw_semicircle_pattern(
+					origin + Vector2(cell_length/2, cell_length/2),
+					weighted_random(counts),
+					to_color(!g.is_white)
+				)
 
 # Helper functions
 static func sum(array):
@@ -235,3 +214,28 @@ func gen_square_points(
 	for idx in range(4): points[idx] = rotate_by(points[idx], angle, origin + dimensions/2)
 
 	return points
+
+
+
+# Unused structs
+func _gen_nine_surrounding(row, col):
+	# Generate cardinals and diagonals
+	return [
+		Vector2i(row-1, col-1), Vector2i(row-1, col), Vector2i(row-1, col+1),
+		Vector2i(row,   col-1), Vector2i(row,   col), Vector2i(row,   col+1),
+		Vector2i(row+1, col-1), Vector2i(row+1, col), Vector2i(row+1, col+1),
+	]
+
+func _gen_five_surrounding(row, col):
+	# Only generate on the cardinals
+	return [
+								Vector2i(row-1, col),
+		Vector2i(row,   col-1), Vector2i(row,   col), Vector2i(row,   col+1),
+								Vector2i(row+1, col),
+	]
+
+func _gen_three_surrounding(row, col):
+	# Only generate on the same row
+	return [
+		Vector2i(row,   col-1), Vector2i(row,   col), Vector2i(row,   col+1),
+	]
