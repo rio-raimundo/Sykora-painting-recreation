@@ -141,9 +141,10 @@ func _draw():
 					_to_color(!g.is_white)
 				)
 
-# Redraw on R key presses
+# Handle inputs
+# TODO SHIFT THROUGH PATTERNS ON LEFT CLICK, ROTATE ON RIGHT CLICK, LOCK ON MIDDLE? 
 func _input(event):
-	const LEGAL_KEYS = [KEY_S, KEY_P, KEY_R, KEY_H]
+	const LEGAL_KEYS = [KEY_S, KEY_P, KEY_R, KEY_H, KEY_C]
 
 	if (event is InputEventKey) and (event.keycode in LEGAL_KEYS):
 		# If S, reset the circle generation KEEPING THE SAME INITIAL PATTERN IDXS
@@ -153,6 +154,15 @@ func _input(event):
 		# If P, reset the circle generation WITH NEW PATTERN IDXs
 		if event.keycode == KEY_P and event.is_pressed() and not event.is_echo():
 			_generate_grid_squares(false, true)
+			_generate_semicircles()
+
+		# If C, reset just the background colors
+		if event.keycode == KEY_C and event.is_pressed() and not event.is_echo():
+			_generate_grid_squares(true, false)
+
+		# If R, reset everything
+		if event.keycode == KEY_R and event.is_pressed() and not event.is_echo():
+			_generate_grid_squares(true, true)
 			_generate_semicircles()
 
 		# If H, toggle hide/show circles
@@ -268,28 +278,3 @@ func gen_square_points(
 	# Rotate the points and return
 	for idx in range(4): points[idx] = rotate_by(points[idx], angle, centre)
 	return points
-
-
-
-# Unused structs
-# func _gen_nine_surrounding(row, col):
-# 	# Generate cardinals and diagonals
-# 	return [
-# 		Vector2i(row-1, col-1), Vector2i(row-1, col), Vector2i(row-1, col+1),
-# 		Vector2i(row,   col-1), Vector2i(row,   col), Vector2i(row,   col+1),
-# 		Vector2i(row+1, col-1), Vector2i(row+1, col), Vector2i(row+1, col+1),
-# 	]
-
-# func _gen_five_surrounding(row, col):
-# 	# Only generate on the cardinals
-# 	return [
-# 								Vector2i(row-1, col),
-# 		Vector2i(row,   col-1), Vector2i(row,   col), Vector2i(row,   col+1),
-# 								Vector2i(row+1, col),
-# 	]
-
-# func _gen_three_surrounding(row, col):
-# 	# Only generate on the same row
-# 	return [
-# 		Vector2i(row,   col-1), Vector2i(row,   col), Vector2i(row,   col+1),
-# 	]
