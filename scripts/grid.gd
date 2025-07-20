@@ -8,7 +8,7 @@ const N_SEMICIRCLE_SEGMENTS: int = 64
 
 # Event probabilities
 # Patterns: Single semicircle against edge, double stacked semcircles, circle, two semicircles facing inwards
-const P_PATTERNS_STARTING = [0.5, 0.2, 0.2, 0.2]  # initial probability of generating each pattern (first passthrough)
+const P_PATTERNS_STARTING = [0.5, 0.1, 0.2, 0.2]  # initial probability of generating each pattern (first passthrough)
 const P_IS_WHITE = 0.5  # probability that a given row's background color is white
 
 # Calculated variables
@@ -33,16 +33,20 @@ class GridSquare:
 	var centre: Vector2
 	var is_white: bool
 	var initial_pattern_idx: int
+	var orientation: float
+
 	var current_pattern_idx: int = 0
 
 	func _init(
 		centre: Vector2,
 		is_white: bool = false,
-		initial_pattern_idx: int = 0
+		initial_pattern_idx: int = 0,
+		orientation: float = 0,
 	):
 		self.centre = centre
 		self.is_white = is_white
 		self.initial_pattern_idx = initial_pattern_idx
+		self.orientation = orientation
 
 
 # --- MAIN FUNCTIONS ---
@@ -67,20 +71,23 @@ func _ready():
 	_generate_semicircles()
 	queue_redraw()
 
-func _generate_grid_squares():
-	# Randomly generate our grid square colors
-	for row in range(N_DRAWN_CELLS):
-		# All squares in the same row have the same color
-		var is_white = randf() < P_IS_WHITE
-
-		# Loop through columns, generate random starting pattern idx and create GridSquare class
-		for col in range(N_DRAWN_CELLS):
-			# Populate the grid_square
-			grid_squares[row][col] = GridSquare.new(
-				grid_squares[row][col].centre,  # centre never changes
-				is_white,
-				weighted_random(P_PATTERNS_STARTING)
-			)
+func _generate_grid_squares(
+	gen_color: bool = true,
+	gen_initial_patterns: bool = true,
+):
+	if gen_color:
+		for row in range(N_DRAWN_CELLS):
+			var is_white = randf() < P_IS_WHITE
+			for col in range(N_DRAWN_CELLS):
+				grid_squares[row][col].is_white = is_white
+				
+	if gen_initial_patterns:
+		for row in range(N_DRAWN_CELLS):
+			for col in range(N_DRAWN_CELLS):
+				var grid_orientation = int(randf()*4) * PI/2
+				var initial_pattern_idx = weighted_random(P_PATTERNS_STARTING)
+				grid_squares[row][col].initial_pattern_idx = initial_pattern_idx
+				grid_squares[row][col].orientation = grid_orientation
 
 func _generate_semicircles():
 	# Draw all grid squares and patterns to the screen
@@ -130,21 +137,30 @@ func _draw():
 				_draw_semicircle_pattern(
 					g.centre,
 					g.current_pattern_idx,
+					g.orientation,
 					_to_color(!g.is_white)
 				)
 
 # Redraw on R key presses
 func _input(event):
-	print('got here')
-	if event is InputEventKey:
-		# If R, reset the circle generation
-		if event.keycode == KEY_R and event.is_pressed() and not event.is_echo():
-			queue_redraw()
+	const LEGAL_KEYS = [KEY_S, KEY_P, KEY_R, KEY_H]
+
+	if (event is InputEventKey) and (event.keycode in LEGAL_KEYS):
+		# If S, reset the circle generation KEEPING THE SAME INITIAL PATTERN IDXS
+		if event.keycode == KEY_S and event.is_pressed() and not event.is_echo():
+			_generate_semicircles()
+
+		# If P, reset the circle generation WITH NEW PATTERN IDXs
+		if event.keycode == KEY_P and event.is_pressed() and not event.is_echo():
+			_generate_grid_squares(false, true)
+			_generate_semicircles()
 
 		# If H, toggle hide/show circles
 		if event.keycode == KEY_H and event.is_pressed() and not event.is_echo():
 			show_circles = !show_circles
-			queue_redraw()
+		
+		# Redraw no matter what
+		queue_redraw()
 
 
 # --- HELPER FUNCTIONS ---
@@ -181,6 +197,7 @@ func _to_world(points: PackedVector2Array):
 func _draw_semicircle_pattern(
 	centre: Vector2, 	# centre of the square
 	pattern_idx: int,   # which of the four legal patterns to draw
+	square_orientation: float, # the orientation of the pattern (should be in [0, PI/2, PI, -PI/2])
 	color: Color
 ):
 	# Assign the rotations
@@ -199,14 +216,11 @@ func _draw_semicircle_pattern(
 		sc_centres = [centre - Vector2(0, 0.25*cell_length), centre + Vector2(0, 0.25*cell_length)]
 		sc_rotations = [PI, 0]
 
-	# Choose the global rotation to apply - each of the four options has 25% chance for now
-	var base_rotation = int(randf()*4) * PI/2
-
 	for sc_idx in range(len(sc_centres)):
 		var sc_points = gen_semicircle_points(sc_centres[sc_idx], cell_length/2, sc_rotations[sc_idx])
 
 		# Rotate around the centre of the SQUARE by the base rotation
-		for idx in range(len(sc_points)): sc_points[idx] = rotate_by(sc_points[idx], base_rotation, centre)
+		for idx in range(len(sc_points)): sc_points[idx] = rotate_by(sc_points[idx], square_orientation, centre)
 
 		draw_polygon(_to_world(sc_points), [color])
 
