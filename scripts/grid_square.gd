@@ -10,8 +10,6 @@ signal square_clicked(id: Vector2i, button_index)
 
 
 # Initialise variables
-var shape: ConvexPolygonShape2D
-
 # Position is a default property of Area2D so no need to redefine it
 var id: Vector2i
 var points: PackedVector2Array
@@ -54,18 +52,27 @@ func setup(
 
 	# Initialise the background rectangle
 	rect.size = Vector2(self.size, self.size)
-	rect.position = -rect.size / 2.0
+	rect.position = (-rect.size / 2.0).round()
 
 	# Initialise collision bounding box using points
-	self.shape = ConvexPolygonShape2D.new()
-	self.shape.points = points  # shape.points is RELATIVE
-	bb.shape = shape
+	var bb_shape = ConvexPolygonShape2D.new()
+	bb_shape.points = points  # bb_shape.points is RELATIVE
+	bb.shape = bb_shape
 
 func set_pattern(pattern_idx: int):
 	if !sprite: return
 	self.sprite.texture = self.textures[pattern_idx]
-
 	var texture_size = self.sprite.texture.get_size()
+
+	# This stops the infuriating anti-aliasing effect by basically putting the sprite RIGHT in the middle of the color rect
+	# TODO look at this at some point cods I bet you can neaten it, but for now I'm going to bed
+	var target_rect = rect.get_rect()
+	sprite.scale = Vector2(
+		target_rect.size.x / texture_size.x,
+		target_rect.size.y / texture_size.y
+	)
+	self.sprite.position = (target_rect.position + target_rect.size / 2.0)
+
 	self.sprite.scale = Vector2(self.size / texture_size.x, self.size / texture_size.y)  # make sure the sprite fits in the grid perfectly
 
 

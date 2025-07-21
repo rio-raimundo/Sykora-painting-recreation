@@ -13,7 +13,7 @@ var h = Helpers
 # Load in class for specified pattern
 # Each class contains an array of starting probabilities and an array of textures, which are passed through to the GridSquares instances
 # Current available patterns can be found by querying PatternsList.PatternNames
-var pattern = PatternsList.Patterns[PatternsList.PatternNames.SEMICIRCLES]
+var pattern = PatternsList.Patterns[PatternsList.PatternNames.TRIANGLES1]
 
 # Calculated variables
 const EXTRA_DRAWN = max(1, N_CELLS/6) * 2		# How many 'offscreen' cells to draw because of the tilt angle. Defaults to 1/3, minimum of 2. Must be even.
@@ -30,18 +30,27 @@ var grid_squares = []  # array over all squares
 # --- MAIN FUNCTIONS ---
 func _ready():
 	# Seed the random seed generator with a unique value
+	self.rotation_degrees = 10  #TODO centre the world around (0,0) so this rotate works
 	randomize()
 	_update_viewport()
+
+	# var previous_centres = Vector2()
 
 	# Initialise grid_squares object
 	for row in range(N_DRAWN_CELLS):
 		grid_squares.append([])
 		for col in range(N_DRAWN_CELLS):
 			# Centre position never changes so we can initialise it
+			# We use this to calculate the size of the square
 			var position = Vector2(
 				(col-EXTRA_DRAWN/2)*cell_size + cell_size/2,
 				(row-EXTRA_DRAWN/2)*cell_size + cell_size/2
 			)
+
+			# if col >= 1:
+			# 	if position[0] - previous_centres[0] - cell_size
+
+
 
 			# Generate points RELATIVE to a centre of (0, 0) to pass in
 			var points = gen_square_points(Vector2(cell_size, cell_size))
