@@ -3,7 +3,7 @@ extends Node2D
 # --- INITIALISE VARIABLES ---
 # Manually declared variables
 const N_CELLS: int = 12
-const WORLD_ROTATION: float = -PI/12
+# const WORLD_ROTATION: float = -PI/12
 const N_SEMICIRCLE_SEGMENTS: int = 64
 const P_IS_WHITE = 0.5  # probability that a given row's background color is white
 
@@ -11,10 +11,9 @@ const GridSquareScene = preload("res://scenes/grid_square.tscn")
 var h = Helpers
 
 # Load in class for specified pattern
+# Each class contains an array of starting probabilities and an array of textures, which are passed through to the GridSquares instances
 # Current available patterns can be found by querying PatternsList.PatternNames
-# AT TIME OF WRITING: .SEMICIRLCES and .TRIANGLES
-var pattern_name = PatternsList.PatternNames.SEMICIRCLES
-var Pattern = PatternsList.return_pattern(pattern_name)
+var pattern = PatternsList.Patterns[PatternsList.PatternNames.SEMICIRCLES]
 
 # Calculated variables
 const EXTRA_DRAWN = max(1, N_CELLS/6) * 2		# How many 'offscreen' cells to draw because of the tilt angle. Defaults to 1/3, minimum of 2. Must be even.
@@ -39,23 +38,25 @@ func _ready():
 		grid_squares.append([])
 		for col in range(N_DRAWN_CELLS):
 			# Centre position never changes so we can initialise it
-			var position = _to_world([Vector2(
+			var position = Vector2(
 				(col-EXTRA_DRAWN/2)*cell_size + cell_size/2,
 				(row-EXTRA_DRAWN/2)*cell_size + cell_size/2
-			)])
+			)
 
 			# Generate points RELATIVE to a centre of (0, 0) to pass in
-			var points = gen_square_points(
-				Vector2(cell_size, cell_size),
-				Vector2(0, 0),  # centre
-				WORLD_ROTATION,  # rotate by world rotation
-			)
+			var points = gen_square_points(Vector2(cell_size, cell_size))
 
 			# Initialise our grid square scene as a child and call the setup function
 			var instance = GridSquareScene.instantiate()
-			instance.setup(Vector2i(row, col), position[0], cell_size, points)
-			instance.square_clicked.connect(_on_grid_square_clicked)
 			add_child(instance)
+			instance.setup(
+				Vector2i(row, col),
+				position,
+ 				cell_size,
+				points,
+				pattern.textures
+			)
+			instance.square_clicked.connect(_on_grid_square_clicked)
 			grid_squares[row].append(instance)
 
 	# Generate the grid squares and semicircles and queue the first redraw of the scene
@@ -81,9 +82,9 @@ func _on_grid_square_clicked(
 
 	# Scrolling handles the rotation
 	elif button_index == MOUSE_BUTTON_WHEEL_UP:
-		g.orientation = fmod(g.orientation + PI/2, 2 * PI)
+		g.orientation = fmod(g.orientation + 90, 360)
 	elif button_index == MOUSE_BUTTON_WHEEL_DOWN:
-		g.orientation = fmod(g.orientation - PI/2, 2 * PI)
+		g.orientation = fmod(g.orientation - 90, 360)
 
 	queue_redraw()
 
@@ -100,8 +101,8 @@ func _generate_grid_squares(
 	if gen_initial_patterns:
 		for row in range(N_DRAWN_CELLS):
 			for col in range(N_DRAWN_CELLS):
-				var grid_orientation = (int(randf()*4) * PI/2)
-				var initial_pattern_idx = h.weighted_random(Pattern.STARTING_PROBABILITIES)
+				var grid_orientation = (int(randf()*4) * 90)
+				var initial_pattern_idx = h.weighted_random(pattern.initial_probabilities)
 				grid_squares[row][col].initial_pattern_idx = initial_pattern_idx
 				grid_squares[row][col].orientation = grid_orientation
 
@@ -110,7 +111,7 @@ func _generate_shapes():
 	for row in range(N_DRAWN_CELLS):
 		# Initialise counts array to keep track of pattern idxs in adjacent squares
 		var counts = []
-		counts.resize(Pattern.N_PATTERNS)
+		counts.resize(len(pattern.textures))
 		counts.fill(0)
 
 		for col in range(N_DRAWN_CELLS):
@@ -123,7 +124,7 @@ func _generate_shapes():
 			if (col > 1): counts[grid_squares[row][col-2].initial_pattern_idx] -= 1
 
 			# Update the current pattern_name idx of the grid square
-			g.current_pattern_idx = h.weighted_random(counts)
+			g.set_pattern(h.weighted_random(counts))
 
 func _update_viewport():
 	# Update the viewport if it has changed on every redraw
@@ -149,9 +150,6 @@ func _draw():
 				g.points,  # already in world coordinates
 				h.to_color(g.is_white)
 			)
-
-			# Draw current pattern with a given idx
-			if show_shapes: Pattern.draw_pattern(self, g, WORLD_ROTATION)
 
 # Handle inputs
 # TODO SHIFT THROUGH PATTERNS ON LEFT CLICK, ROTATE ON RIGHT CLICK, LOCK ON MIDDLE? 
@@ -185,21 +183,10 @@ func _input(event):
 		queue_redraw()
 
 
-# Private helpers
-
-func _to_world(points: PackedVector2Array):
-	for i in range(len(points)):
-		points[i] = h.rotate_by(points[i], WORLD_ROTATION, centre_point)
-	return points
-
-
 # Shape drawing functions
-
-
 func gen_square_points(
 	dimensions: Vector2,
 	centre: Vector2 = Vector2(0, 0),
-	angle: float = 0
 ):
 	var points = [
 		centre + Vector2(-dimensions.x/2, -dimensions.y/2),
@@ -209,5 +196,4 @@ func gen_square_points(
 	]
 
 	# Rotate the points and return
-	for idx in range(4): points[idx] = h.rotate_by(points[idx], angle, centre)
 	return points
