@@ -13,7 +13,7 @@ var h = Helpers
 # Load in class for specified pattern
 # Each class contains an array of starting probabilities and an array of textures, which are passed through to the GridSquares instances
 # Current available patterns can be found by querying PatternsList.PatternNames
-var pattern = PatternsList.Patterns[PatternsList.PatternNames.SEMICIRCLES]
+var pattern = PatternsList.Patterns[PatternsList.PatternNames.TRIANGLES1]
 
 # Calculated variables
 const EXTRA_DRAWN = max(1, N_CELLS/6) * 2		# How many 'offscreen' cells to draw because of the tilt angle. Defaults to 1/3, minimum of 2. Must be even.
@@ -72,7 +72,7 @@ func _on_grid_square_clicked(
 
 	# Left clicks cycle through patterns
 	if button_index == MOUSE_BUTTON_LEFT:
-		g.current_pattern_idx = (g.current_pattern_idx + 1) % 4
+		g.current_pattern_idx = (g.current_pattern_idx + 1) % len(pattern.textures)
 
 	# Right clicks cycle through the color of a line
 	# So we have to get all the squares in that line
