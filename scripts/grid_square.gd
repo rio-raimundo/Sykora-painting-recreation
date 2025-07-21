@@ -5,6 +5,8 @@ extends Area2D
 signal square_clicked(id: Vector2i, button_index)
 
 @onready var sprite: Sprite2D = $Sprite2D
+@onready var rect: ColorRect = $ColorRect
+@onready var bb: CollisionShape2D = $CollisionShape2D
 
 
 # Initialise variables
@@ -16,17 +18,20 @@ var points: PackedVector2Array
 var size: float
 var textures: Array
 
-var is_white: bool
 var initial_pattern_idx: int
 var current_pattern_idx: int:
 	set(val):
 		current_pattern_idx = val
 		set_pattern(val)
-
 var orientation: float:
 	set(val):
 		orientation = val
 		if sprite: sprite.rotation_degrees = orientation
+var is_white: bool = false:
+	set(val):
+		is_white = val
+		if rect: rect.color = Color(is_white, is_white, is_white)
+		if sprite: sprite.modulate = Color(!is_white, !is_white, !is_white)
 
 func setup(
 	# Identifiers
@@ -43,10 +48,14 @@ func setup(
 	self.points = points
 	self.textures = textures
 
+	# Initialise the background rectangle
+	rect.size = Vector2(self.size, self.size)
+	rect.position = -rect.size / 2.0
+
 	# Initialise collision bounding box using points
 	self.shape = ConvexPolygonShape2D.new()
 	self.shape.points = points  # shape.points is RELATIVE
-	$CollisionShape2D.shape = shape
+	bb.shape = shape
 
 func set_pattern(pattern_idx: int):
 	if !sprite: return

@@ -13,7 +13,7 @@ var h = Helpers
 # Load in class for specified pattern
 # Each class contains an array of starting probabilities and an array of textures, which are passed through to the GridSquares instances
 # Current available patterns can be found by querying PatternsList.PatternNames
-var pattern = PatternsList.Patterns[PatternsList.PatternNames.TRIANGLES1]
+var pattern = PatternsList.Patterns[PatternsList.PatternNames.SEMICIRCLES]
 
 # Calculated variables
 const EXTRA_DRAWN = max(1, N_CELLS/6) * 2		# How many 'offscreen' cells to draw because of the tilt angle. Defaults to 1/3, minimum of 2. Must be even.
