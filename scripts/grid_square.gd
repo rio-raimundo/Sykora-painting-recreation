@@ -32,6 +32,10 @@ var is_white: bool = false:
 		is_white = val
 		if rect: rect.color = Color(is_white, is_white, is_white)
 		if sprite: sprite.modulate = Color(!is_white, !is_white, !is_white)
+var shape_visible: bool = true:
+	set(val):
+		shape_visible = val
+		if sprite: sprite.visible = val
 
 func setup(
 	# Identifiers

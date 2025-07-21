@@ -91,7 +91,12 @@ func _on_grid_square_clicked(
 func _generate_grid_squares(
 	gen_color: bool = true,
 	gen_initial_patterns: bool = true,
+	shapes_visible: bool = true,
 ):
+	for row in range(N_DRAWN_CELLS):
+		for col in range(N_DRAWN_CELLS):
+			grid_squares[row][col].shape_visible = shapes_visible
+
 	if gen_color:
 		for row in range(N_DRAWN_CELLS):
 			var is_white = randf() < P_IS_WHITE
@@ -140,17 +145,6 @@ func _update_viewport():
 func _draw():
 	_update_viewport()
 
-	# Draw all grid squares and patterns to the screen
-	for row in range(N_DRAWN_CELLS):
-		for col in range(N_DRAWN_CELLS):
-			var g = grid_squares[row][col]
-
-			# Define grid square attributes and draw it
-			draw_colored_polygon(
-				g.points,  # already in world coordinates
-				h.to_color(g.is_white)
-			)
-
 # Handle inputs
 # TODO SHIFT THROUGH PATTERNS ON LEFT CLICK, ROTATE ON RIGHT CLICK, LOCK ON MIDDLE? 
 func _input(event):
@@ -178,6 +172,7 @@ func _input(event):
 		# If H, toggle hide/show circles
 		if event.keycode == KEY_H and event.is_pressed() and not event.is_echo():
 			show_shapes = !show_shapes
+			_generate_grid_squares(false, false, show_shapes)
 		
 		# Redraw no matter what
 		queue_redraw()
