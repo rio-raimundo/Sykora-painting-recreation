@@ -3,7 +3,7 @@ extends Node2D
 # --- INITIALISE VARIABLES ---
 # Manually declared variables
 const N_CELLS: int = 12
-# const WORLD_ROTATION: float = -PI/12
+const WORLD_ROTATION: float = -15
 const N_SEMICIRCLE_SEGMENTS: int = 64
 const P_IS_WHITE = 0.5  # probability that a given row's background color is white
 
@@ -30,7 +30,7 @@ var grid_squares = []  # array over all squares
 # --- MAIN FUNCTIONS ---
 func _ready():
 	# Seed the random seed generator with a unique value
-	self.rotation_degrees = 10  #TODO centre the world around (0,0) so this rotate works
+	self.rotation_degrees = WORLD_ROTATION
 	randomize()
 	_update_viewport()
 
