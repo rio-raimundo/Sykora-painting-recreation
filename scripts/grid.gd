@@ -25,16 +25,17 @@ var win_dim: Vector2		# dimensions of the window
 var grid_length: float		# length (height and width) of the square grid
 var cell_size: float		# length (height and width) of a single cell
 var centre_point: Vector2	# centre-point of the entire grid
-var grid_squares = []  # array over all squares
+var grid_squares = []  		# array over all squares
 
 # --- MAIN FUNCTIONS ---
 func _ready():
 	# Seed the random seed generator with a unique value
 	self.rotation_degrees = WORLD_ROTATION
 	randomize()
-	_update_viewport()
+	_update_viewport()  # this sets centre point and other screen related things
 
-	# var previous_centres = Vector2()
+	# Points are relative to (0, 0) so they are the same for all squares
+	var points = gen_square_points(Vector2(cell_size, cell_size))
 
 	# Initialise grid_squares object
 	for row in range(N_DRAWN_CELLS):
@@ -43,18 +44,10 @@ func _ready():
 			# Centre position never changes so we can initialise it
 			# We use this to calculate the size of the square
 			var position = Vector2(
-				(col-EXTRA_DRAWN/2)*cell_size + cell_size/2,
-				(row-EXTRA_DRAWN/2)*cell_size + cell_size/2
-			)
-
-			# if col >= 1:
-			# 	if position[0] - previous_centres[0] - cell_size
-
-
-
-			# Generate points RELATIVE to a centre of (0, 0) to pass in
-			var points = gen_square_points(Vector2(cell_size, cell_size))
-
+				(col)*cell_size + cell_size/2,
+				(row)*cell_size + cell_size/2
+			) - Vector2((cell_size*N_DRAWN_CELLS)/2, (cell_size*N_DRAWN_CELLS)/2)
+			
 			# Initialise our grid square scene as a child and call the setup function
 			var instance = GridSquareScene.instantiate()
 			add_child(instance)
@@ -147,9 +140,6 @@ func _update_viewport():
 		win_dim = tmp_dim
 		grid_length = min(win_dim.x, win_dim.y)
 		cell_size = grid_length / N_CELLS
-
-		# Update the buffer and centre
-		centre_point = Vector2(grid_length/2, grid_length/2)
 
 func _draw():
 	_update_viewport()

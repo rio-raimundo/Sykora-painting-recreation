@@ -7,3 +7,5 @@
 script = ExtResource("1_o5qli")
 
 [node name="GridSquare" parent="." instance=ExtResource("2_0wfyh")]
+
+[node name="Camera2D" type="Camera2D" parent="."]
