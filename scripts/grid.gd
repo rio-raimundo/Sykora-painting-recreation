@@ -70,12 +70,9 @@ func _update_grid():
 	# Return if all have not been initialised
 	if (min_cell_size <= 0) or (viewport_size.x <= 2 or viewport_size.y <= 2) or (cell_size <= 0): return
 
-	# We want to calculate number of cells as (rows, cols), so first we swap viewport coords (which are x,y)
-	var viewport_rc = Vector2(viewport_size[1], viewport_size[0])
-	# To convert, we want to know how many squares would fill the DIAGONAL of our viewport, since this will allow any rotation without gaps
-
-	# We want n_cells and max_n_cells to be even to keep the centre in the same point (could also both be odd)
-	n_cells = _make_even_ceil(sqrt(2) * viewport_rc / cell_size)
+	# Because of rotation, we always want to draw cells in a square
+	var diagonal = sqrt(viewport_size[0]**2 + viewport_size[1]**2)
+	n_cells = _make_even_ceil(Vector2(diagonal, diagonal) / cell_size)
 	grid_dim = Vector2(n_cells[1], n_cells[0]) * cell_size
 
 	# Initialise the grid pool if it hasn't been yet
@@ -88,9 +85,9 @@ func _update_grid():
 
 func _initialise_grid_pool():
 	# Figure out what the maximum number of squares that we might need is and save them in the pool
-	# We want to calculate number of cells as (rows, cols), so first we swap viewport coords (which are x,y)
-	var viewport_rc = Vector2(viewport_size[1], viewport_size[0])
-	max_n_cells = _make_even_ceil(sqrt(2) * viewport_rc / min_cell_size)
+	# This ends up as being the square with side length equal to the diagonal of the viewport
+	var diagonal = sqrt(viewport_size[0]**2 + viewport_size[1]**2)
+	max_n_cells = _make_even_ceil(Vector2(diagonal, diagonal) / min_cell_size)
 
 	# Now that we have max_n_cells we can initialise the row colors too 
 	_update_row_colors(false)  # set draw to false because we dont have patterns yet
