@@ -54,6 +54,11 @@ func setup(
 	# Initialise collision bounding box using points
 	bb.shape = ConvexPolygonShape2D.new()
 
+func resize(points: PackedVector2Array, position: Vector2, size: int):
+	self.points = points
+	self.position = position
+	self.size = size
+
 func set_pattern(pattern_idx: int):
 	if !sprite: return
 	self.sprite.texture = self.textures[pattern_idx]

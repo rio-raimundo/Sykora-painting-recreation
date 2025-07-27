@@ -149,10 +149,7 @@ func _generate_visible_grid():
 			var position = (Vector2(col+0.5, row+0.5))  * cell_size - (grid_dim/2)
 
 			# Assign position, points and size to our GridSquare
-			var g = visible_grid[row][col]
-			g.points = points
-			g.position = position
-			g.size = cell_size
+			visible_grid[row][col].resize(points, position, cell_size)
 
 
 func _update_grid_squares(
