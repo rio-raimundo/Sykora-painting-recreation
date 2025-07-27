@@ -121,6 +121,9 @@ func _ready():
 
 # Should be called whenever the cell_size changes! 
 func _update_visible_grid():
+	# Before we update the visible grid, we deactivate all items
+	for row in max_n_cells[0]: for col in max_n_cells[1]: grid_pool[row][col].deactivate()
+
 	# Initialise the positions and sizes of the visible grid
 	visible_grid = []
 
@@ -141,7 +144,7 @@ func _update_visible_grid():
 			var position = (Vector2(col+0.5, row+0.5))  * cell_size - (grid_dim/2)
 
 			# Assign position, points and size to our GridSquare
-			visible_grid[row][col].resize(points, position, cell_size)
+			visible_grid[row][col].activate(points, position, cell_size)
 
 
 # Function to update the grid squares, with a lot of options. Currently a bit multipurpose and awkward

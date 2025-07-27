@@ -94,3 +94,18 @@ func _resize_pattern():
 func _on_input_event(viewport: Node, event: InputEvent, shape_idx: int) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		square_clicked.emit(self.id, event.button_index)
+
+
+# --- POOL FUNCTIONS ---
+# Called when taking a square from the cool and adding it to the visible rect
+func activate(new_points: PackedVector2Array, new_position: Vector2, new_size: int) -> void:
+	process_mode = Node.PROCESS_MODE_INHERIT
+	visible = true
+	bb.disabled = false
+	resize(new_points, new_position, new_size)
+
+# Called when returning a square to the pool
+func deactivate() -> void:
+	process_mode = Node.PROCESS_MODE_DISABLED
+	visible = false
+	bb.disabled = true
