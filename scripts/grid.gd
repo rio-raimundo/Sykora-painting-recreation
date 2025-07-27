@@ -1,5 +1,18 @@
 extends Node2D
 
+# KIND OF A GUIDE ABOUT THIS FILE
+# Because there are a lot of settings that can be changed, this code is pretty spaghetti rn
+# This is my attempt to lay out the order of operations of how it works
+# First, all of the assets in all of the files ready, and this file is passed references to the viewport size, minimum cell size, and starting cell size
+# The viewport size and minimum cell size determine the maximum number of cells that will ever need to be on screen at once. 
+# We initialise these cells in initialise_grid(), ONLY once. At this point they have no position or size.
+# Then we take the cell size variable and calculate how many cells should be on screen right now. We sample that many cells from the MIDDLE of the pool using the vis_grid_starting_idxs getter, give those cells the correct position and size, and draw their attributes
+# At this point, the first screen is shown. Here, the user can interact with it in a variety of ways, but there are two main levels:
+#	1. Everything except cell size changes - pattern changes, rotations, colour changes do NOT need to redraw the square objects themselves
+#	2. Changing the cell size DOES need to redraw everythign from scratch, but it still keeps the pool of squares that we use / does not affect patterns
+# This means if you make the cell size very big and then back to the original size, the patterns will remain the same
+
+
 # --- INITIALISE OBJECT AND SCRIPT REFERENCES ---
 @onready var viewport: Viewport = get_viewport()
 const GridSquareScene = preload("res://scenes/grid_square.tscn")
@@ -14,9 +27,10 @@ var pattern_map = PatternsList.Patterns[PatternsList.PatternNames.SEMICIRCLES]
 const P_IS_WHITE = 0.5			# Starting probability that a given row's background color is white
 var show_shapes = true			# Whether shapes should be draw. starts as true, can be changed via UI
 
-var n_cells: Vector2			# Number of cells to draw on screen. Determined dynamically by cell and viewport size
-var grid_dim: Vector2			# Dimensions of the cell grid
-var grid_origin: Vector2		# Top left corner of the cell grid. Calculated so grid centre is at (0,0)
+var n_cells: Vector2i			# Number of cells to draw on screen. Determined dynamically by cell and viewport size
+var max_n_cells: Vector2i		# The maximum number of cells stored in the pool
+var grid_dim: Vector2			# Dimensions of the visible cell grid
+var grid_origin: Vector2		# Top left corner of the visible cell grid. Calculated so grid centre is at (0,0)
 
 var grid_squares_pool = []		# 2D Array of all GridSquareScene objects that could be drawn
 var active_grid_squares = []	# 2D Array of GridSquareScene object references to be drawn to the viewport
@@ -26,7 +40,10 @@ var active_grid_squares = []	# 2D Array of GridSquareScene object references to 
 # Length (height and width) of a cell (px)
 var cell_size: float:
 	set(val):
+		print('cell size = ', cell_size)
 		cell_size = val
+		print('cell size = ', cell_size)
+		_update_grid()
 
 # Minimum cell size that it is possible to set using the slider.
 # Used to calculate total number of grid square objects to initialise
@@ -34,7 +51,7 @@ var cell_size: float:
 var min_cell_size: float:
 	set(val):
 		min_cell_size = val
-		_initialise_grid()
+		_update_grid()
 
 # Size of the nearest viewport or subviewport
 var viewport_size: Vector2:
@@ -49,20 +66,32 @@ var viewport_size: Vector2:
 
 		# Origin is the centrepoint of the viewport minus the centre_point of the grid
 		grid_dim = Vector2(n_cells[1], n_cells[0]) * cell_size
-		_initialise_grid()
+		_update_grid()
 
+# Starting index (row, col) of the visible cell grid, within the global grid (i.e. the pool)
+var vis_grid_starting_idxs: Vector2i:
+	get(): return (max_n_cells - n_cells) / 2
 
 # --- GENERATION FUNCTIONS ---
-# This function relies on having both the size of the viewport AND the minimum cell size, so it will not run if either has not been initialised.
-# It is designed to run once at the end of the ready phase for all necessary objects.
-func _initialise_grid():
-	# Slight botch, return if no cell size or the viewport size is not bigger than the default of 2px
-	if min_cell_size <= 0 or viewport_size.x <= 2 or viewport_size.y <= 2: return
+# Initialise the pool of grid squares if not already initialised, and redraw the visible grid if cell size changes 
+# Returns unless (viewport, minimum cell size & cell size) are initialised (not at default values)
+func _update_grid():
+	# Return if all have not been initialised
+	if (min_cell_size <= 0) or (viewport_size.x <= 2 or viewport_size.y <= 2) or (cell_size <= 0): return
 
+	# Initialise the grid pool if it hasn't been yet
+	# Currently this can only happen once, meaning the viewport and min_cell_size can't change after initialisation!
+	if !grid_squares_pool.is_empty(): _initialise_grid_pool()
+
+	# Draw the visible grid
+	# Currently this uses the old logic (need to change it)
+	_generate_all()
+
+func _initialise_grid_pool():
 	# Figure out what the maximum number of squares that we might need is and save them in the pool
 	# We want to calculate number of cells as (rows, cols), so first we swap viewport coords (which are x,y)
 	var viewport_rc = Vector2(viewport_size[1], viewport_size[0])
-	var max_n_cells = ceil(sqrt(2) * viewport_rc / min_cell_size)
+	max_n_cells = ceil(sqrt(2) * viewport_rc / min_cell_size)
 
 	# With min cell size of 10, this is 128r * 136c  = 17000. Try it and see? Might have to adjust minimum cell size
 	# Initialise the cell pool
@@ -79,8 +108,6 @@ func _initialise_grid():
 			)
 			instance.square_clicked.connect(_on_grid_square_clicked)
 			grid_squares_pool[row].append(instance)
-
-	_generate_all()
 
 
 
@@ -125,6 +152,12 @@ func _generate_grid_squares():
 			)
 			instance.square_clicked.connect(_on_grid_square_clicked)
 			active_grid_squares[row].append(instance)
+
+# Should be called whenever the cell_size changes! 
+func _generate_visible_grid(
+
+):
+	pass
 
 
 func _generate_grid_square_attributes(
