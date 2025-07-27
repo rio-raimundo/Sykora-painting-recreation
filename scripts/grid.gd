@@ -1,88 +1,65 @@
 extends Node2D
 
-# --- INITIALISE VARIABLES ---
-# Manually declared variables
-# length (height and width) of a cell (px)
-var cell_size: float:
-	set(new_value):
-		cell_size = new_value
-		_generate_all()
-	get:
-		return cell_size
-
-const WORLD_ROTATION: float = 0
-const N_SEMICIRCLE_SEGMENTS: int = 64
-const P_IS_WHITE = 0.5  # probability that a given row's background color is white
-
+# --- INITIALISE OBJECT AND SCRIPT REFERENCES ---
+@onready var viewport: Viewport = get_viewport()
 const GridSquareScene = preload("res://scenes/grid_square.tscn")
 var h = Helpers
 
-# Load in class for specified pattern
-# Each class contains an array of starting probabilities and an array of textures, which are passed through to the GridSquares instances
-# Current available patterns can be found by querying PatternsList.PatternNames
-var pattern = PatternsList.Patterns[PatternsList.PatternNames.SEMICIRCLES]
+# Load in the pattern map to draw (logic in PatternsList file)
+# Options at time of writing = [TRIANGLES1, SEMICIRCLES]
+var pattern_map = PatternsList.Patterns[PatternsList.PatternNames.SEMICIRCLES]
 
-# Initialise variables
-var viewport_size
-var show_shapes = true
-var cell_dim: Vector2 = Vector2(cell_size, cell_size)
-var n_cells: Vector2
-var grid_dimensions: Vector2
-var origin: Vector2
-var grid_squares = []
-var min_cell_size  # initialised in main_layout by the minimum value of the cell_size slider
 
-# Handle varaible initialisations that require ready
-@onready var viewport: Viewport = get_viewport()
+# --- INITIALISE VARIABLES ---
+const P_IS_WHITE = 0.5			# Starting probability that a given row's background color is white
+var show_shapes = true			# Whether shapes should be draw. starts as true, can be changed via UI
 
-# --- MAIN FUNCTIONS ---
+var n_cells: Vector2			# Number of cells to draw on screen. Determined dynamically by cell and viewport size
+var grid_dim: Vector2			# Dimensions of the cell grid
+var grid_origin: Vector2		# Top left corner of the cell grid. Calculated so grid centre is at (0,0)
+var grid_squares = []			# 2D Array of GridSquareScene object references to be drawn to the viewport
+
+
+# --- INITIALISE GETTERS AND SETTERS ---
+# Length (height and width) of a cell (px)
+var cell_size: float:
+	set(val):
+		cell_size = val
+		if min_cell_size != null: _generate_all()
+
+# Minimum cell size that it is possible to set using the slider.
+# Used to calculate total number of grid square objects to initialise
+var min_cell_size: float:
+	set(val):
+		min_cell_size = val
+		print('minimum cell size = ', min_cell_size)
+
+# Size of the nearest viewport or subviewport
+var viewport_size: Vector2:
+	set(val):
+		# When viewport size is changed, we re-render everything. Does not affect window resizes.
+		viewport_size = val
+
+		# We want to calculate number of cells as (rows, cols), so first we swap viewport coords (which are x,y)
+		var viewport_rc = Vector2(viewport_size[1], viewport_size[0])
+		# To convert, we want to know how many squares would fill the DIAGONAL of our viewport, since this will allow any rotation without gaps
+		n_cells = ceil(sqrt(2) * viewport_rc / cell_size)
+
+		# Origin is the centrepoint of the viewport minus the centre_point of the grid
+		grid_dim = Vector2(n_cells[1], n_cells[0]) * cell_size
+		_generate_all()
+
+
+# --- GENERATION FUNCTIONS ---
 func _ready():
 	# Seed the random seed generator with a unique value
 	randomize()
 
-	# We establish a signal to execute when the viewport size is changed.
-	viewport.size_changed.connect(_on_viewport_size_changed)
-	_on_viewport_size_changed()  # Handle drawing everything
+	# Establish a signal to keep local variable updated with current viewport size, then call it with initial vport size
+	var update_viewport_size = func(): self.viewport_size = get_viewport().size
+	viewport.size_changed.connect(update_viewport_size)
+	update_viewport_size.call()
 
-	print('minimum cell size = ', min_cell_size)
-
-
-func _on_viewport_size_changed():
-	# Here we update variables
-	viewport_size = get_viewport().size
-
-	# We want to calculate number of cells as (rows, cols), so first we swap viewport coords (which are x,y)
-	var viewport_rc = Vector2(viewport_size[1], viewport_size[0])
-	# To convert, we want to know how many squares would fill the DIAGONAL of our viewport, since this will allow any rotation without gaps
-	n_cells = ceil(sqrt(2) * viewport_rc / cell_size)
-
-	# Origin is the centrepoint of the viewport minus the centre_point of the grid
-	grid_dimensions = Vector2(n_cells[1], n_cells[0]) * cell_size
-	_generate_all()
-
-func _on_grid_square_clicked(
-	id: Vector2i,
-	button_index
-):
-	var g = grid_squares[id[0]][id[1]]
-
-	# Left clicks cycle through patterns
-	if button_index == MOUSE_BUTTON_LEFT:
-		g.current_pattern_idx = (g.current_pattern_idx + 1) % len(pattern.textures)
-
-	# Right clicks cycle through the color of a line
-	# So we have to get all the squares in that line
-	elif button_index == MOUSE_BUTTON_RIGHT:
-		for square in grid_squares[id[0]]:
-			square.is_white = !square.is_white
-
-	# Scrolling handles the rotation
-	elif button_index == MOUSE_BUTTON_WHEEL_UP:
-		g.orientation = fmod(g.orientation + 90, 360)
-	elif button_index == MOUSE_BUTTON_WHEEL_DOWN:
-		g.orientation = fmod(g.orientation - 90, 360)
-
-	queue_redraw()
 
 func _generate_all():
 	_generate_grid_squares()
@@ -93,14 +70,14 @@ func _generate_all():
 func _generate_grid_squares():
 	# Points are relative to (0, 0) so they are the same for all squares
 	grid_squares = []
-	var points = gen_square_points(cell_dim)
+	var points = gen_rectangle_points(Vector2(cell_size, cell_size))
 
 	# Initialise grid_squares object
 	for row in range(n_cells[0]):  # rows, so y
 		grid_squares.append([])
 		for col in range(n_cells[1]):  # cols, so x
 			# Calculate the position for this square
-			var position = (Vector2(col+0.5, row+0.5))  * cell_size - (grid_dimensions/2)
+			var position = (Vector2(col+0.5, row+0.5))  * cell_size - (grid_dim/2)
 			
 			# Initialise our grid square scene as a child and call the setup function
 			var instance = GridSquareScene.instantiate()
@@ -110,7 +87,7 @@ func _generate_grid_squares():
 				position,
  				cell_size,
 				points,
-				pattern.textures
+				pattern_map.textures
 			)
 			instance.square_clicked.connect(_on_grid_square_clicked)
 			grid_squares[row].append(instance)
@@ -135,19 +112,19 @@ func _generate_grid_square_attributes(
 		for row in range(n_cells[0]):
 			for col in range(n_cells[1]):
 				var grid_orientation = (int(randf()*4) * 90)
-				var initial_pattern_idx = h.weighted_random(pattern.initial_probabilities)
+				var initial_pattern_idx = h.weighted_random(pattern_map.initial_probabilities)
 				grid_squares[row][col].initial_pattern_idx = initial_pattern_idx
 				grid_squares[row][col].orientation = grid_orientation
 
 func _generate_shapes():
 	# Draw patterns using a weighted random of the surrounding initial patterns
 	for row in range(n_cells[0]):
-		# Initialise counts array to keep track of pattern idxs in adjacent squares
+		# Initialise counts array to keep track of pattern_map idxs in adjacent squares
 		var counts = []
-		counts.resize(len(pattern.textures))
+		counts.resize(len(pattern_map.textures))
 		counts.fill(0)
 
-		# Start with the first pattern in the row
+		# Start with the first pattern_map in the row
 		counts[grid_squares[row][0].initial_pattern_idx] += 1
 		for col in range(n_cells[1]):
 			var g = grid_squares[row][col]
@@ -161,11 +138,34 @@ func _generate_shapes():
 			# Update the current pattern_name idx of the grid square
 			g.set_pattern(h.weighted_random(counts))
 
-func _draw():
-	pass
 
-# Handle inputs
-# TODO SHIFT THROUGH PATTERNS ON LEFT CLICK, ROTATE ON RIGHT CLICK, LOCK ON MIDDLE? 
+# --- SIGNAL FUNCTIONS ---
+# Handles clicks to grid squares, passing through the unique ID of the square and the index of the button press
+func _on_grid_square_clicked(
+	id: Vector2i,
+	button_index
+):
+	var g = grid_squares[id[0]][id[1]]
+
+	# Left clicks cycle through patterns
+	if button_index == MOUSE_BUTTON_LEFT:
+		g.current_pattern_idx = (g.current_pattern_idx + 1) % len(pattern_map.textures)
+
+	# Right clicks cycle through the color of a line
+	# So we have to get all the squares in that line
+	elif button_index == MOUSE_BUTTON_RIGHT:
+		for square in grid_squares[id[0]]:
+			square.is_white = !square.is_white
+
+	# Scrolling handles the rotation
+	elif button_index == MOUSE_BUTTON_WHEEL_UP:
+		g.orientation = fmod(g.orientation + 90, 360)
+	elif button_index == MOUSE_BUTTON_WHEEL_DOWN:
+		g.orientation = fmod(g.orientation - 90, 360)
+
+	queue_redraw()
+
+# Handles key press inputs and their effects on the game world
 func _input(event):
 	const LEGAL_KEYS = [KEY_S, KEY_P, KEY_R, KEY_H, KEY_C]
 
@@ -197,17 +197,13 @@ func _input(event):
 		queue_redraw()
 
 
-# Shape drawing functions
-func gen_square_points(
-	dimensions: Vector2,
-	centre: Vector2 = Vector2(0, 0),
-):
-	var points = [
-		centre + Vector2(-dimensions.x/2, -dimensions.y/2),
-		centre + Vector2(+dimensions.x/2, -dimensions.y/2),
-		centre + Vector2(+dimensions.x/2, +dimensions.y/2),
-		centre + Vector2(-dimensions.x/2, +dimensions.y/2),
+# --- HELPER FUNCTIONS ---
+# Generate the points of a rectangle with given dimensions and centre at (0,0)
+# TODO maybe move this to helpers?
+func gen_rectangle_points(dimensions: Vector2):
+	return [
+		Vector2(-dimensions.x/2, -dimensions.y/2),
+		Vector2(+dimensions.x/2, -dimensions.y/2),
+		Vector2(+dimensions.x/2, +dimensions.y/2),
+		Vector2(-dimensions.x/2, +dimensions.y/2),
 	]
-
-	# Rotate the points and return
-	return points
