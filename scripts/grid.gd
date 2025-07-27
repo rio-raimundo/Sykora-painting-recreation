@@ -59,26 +59,26 @@ func _initialise_grid():
 	# Slight botch, return if no cell size or the viewport size is not bigger than the default of 2px
 	if min_cell_size <= 0 or viewport_size.x <= 2 or viewport_size.y <= 2: return
 
-	# # Figure out what the maximum number of squares that we might need is and save them in the pool
-	# # We want to calculate number of cells as (rows, cols), so first we swap viewport coords (which are x,y)
-	# var viewport_rc = Vector2(viewport_size[1], viewport_size[0])
-	# var max_n_cells = ceil(sqrt(2) * viewport_rc / min_cell_size)
+	# Figure out what the maximum number of squares that we might need is and save them in the pool
+	# We want to calculate number of cells as (rows, cols), so first we swap viewport coords (which are x,y)
+	var viewport_rc = Vector2(viewport_size[1], viewport_size[0])
+	var max_n_cells = ceil(sqrt(2) * viewport_rc / min_cell_size)
 
-	# # With min cell size of 10, this is 128r * 136c  = 17000. Try it and see? Might have to adjust minimum cell size
-	# # Initialise the cell pool
-	# grid_squares_pool = []  # reset the pool
-	# for row in max_n_cells[0]:
-	# 	grid_squares_pool.append([])
+	# With min cell size of 10, this is 128r * 136c  = 17000. Try it and see? Might have to adjust minimum cell size
+	# Initialise the cell pool
+	grid_squares_pool = []  # reset the pool
+	for row in max_n_cells[0]:
+		grid_squares_pool.append([])
 		
-	# 	for col in max_n_cells[1]:
-	# 		var instance = GridSquareScene.instantiate()
-	# 		add_child(instance)
-	# 		instance.setup(
-	# 			Vector2i(row, col),   # ID for the square
-	# 			pattern_map.textures  # references to texture options to draw
-	# 		)
-	# 		instance.square_clicked.connect(_on_grid_square_clicked)
-	# 		grid_squares_pool[row].append(instance)
+		for col in max_n_cells[1]:
+			var instance = GridSquareScene.instantiate()
+			add_child(instance)
+			instance.setup(
+				Vector2i(row, col),   # ID for the square
+				pattern_map.textures  # references to texture options to draw
+			)
+			instance.square_clicked.connect(_on_grid_square_clicked)
+			grid_squares_pool[row].append(instance)
 
 	_generate_all()
 
@@ -118,7 +118,7 @@ func _generate_grid_squares():
 			instance.setup(
 				Vector2i(row, col),
 				pattern_map.textures,
-				
+
 				position,
  				cell_size,
 				points,

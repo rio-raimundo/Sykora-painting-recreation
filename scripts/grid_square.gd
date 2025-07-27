@@ -57,7 +57,7 @@ func setup(
 
 	# Initialise collision bounding box using points
 	var bb_shape = ConvexPolygonShape2D.new()
-	if points.is_empty(): bb_shape.points = points  # bb_shape.points is RELATIVE
+	if !points.is_empty(): bb_shape.points = points  # bb_shape.points is RELATIVE
 	bb.shape = bb_shape
 
 func set_pattern(pattern_idx: int):
