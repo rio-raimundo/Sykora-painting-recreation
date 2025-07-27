@@ -1,9 +1,26 @@
-[gd_scene load_steps=4 format=3 uid="uid://df21lel0ccd5t"]
+[gd_scene load_steps=6 format=3 uid="uid://df21lel0ccd5t"]
 
 [ext_resource type="PackedScene" uid="uid://dpsrkja6epky2" path="res://scenes/grid_handler.tscn" id="1_h2w21"]
 [ext_resource type="Script" uid="uid://byv2wqs2jt0ap" path="res://scripts/main_layout.gd" id="1_prwh2"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_prwh2"]
+bg_color = Color(0, 0, 0, 1)
+draw_center = false
+border_width_left = 8
+border_width_top = 8
+border_width_right = 8
+border_width_bottom = 8
+border_color = Color(0, 0, 0, 1)
+
 [sub_resource type="Theme" id="Theme_prwh2"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_t2smg"]
+content_margin_left = 30.0
+content_margin_top = 30.0
+content_margin_right = 30.0
+content_margin_bottom = 100.0
+bg_color = Color(0.226707, 0.226707, 0.226707, 1)
+border_color = Color(0.252028, 0.252028, 0.252027, 1)
 
 [node name="Control" type="Control"]
 layout_mode = 3
@@ -25,6 +42,7 @@ script = ExtResource("1_prwh2")
 [node name="FrameHolder" type="PanelContainer" parent="MainLayout"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_prwh2")
 
 [node name="SubViewportContainer" type="SubViewportContainer" parent="MainLayout/FrameHolder"]
 layout_mode = 2
@@ -34,7 +52,7 @@ stretch = true
 [node name="SubViewport" type="SubViewport" parent="MainLayout/FrameHolder/SubViewportContainer"]
 handle_input_locally = false
 physics_object_picking = true
-size = Vector2i(961, 900)
+size = Vector2i(1157, 884)
 size_2d_override_stretch = true
 render_target_update_mode = 4
 
@@ -43,18 +61,46 @@ render_target_update_mode = 4
 [node name="UIHolder" type="PanelContainer" parent="MainLayout"]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_stretch_ratio = 0.66
+size_flags_stretch_ratio = 0.36
 
-[node name="VBoxContainer" type="VBoxContainer" parent="MainLayout/UIHolder"]
+[node name="PanelContainer" type="PanelContainer" parent="MainLayout/UIHolder"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_t2smg")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MainLayout/UIHolder/PanelContainer"]
 layout_mode = 2
 
-[node name="RotationSlider" type="HSlider" parent="MainLayout/UIHolder/VBoxContainer"]
+[node name="TitleLabel" type="RichTextLabel" parent="MainLayout/UIHolder/PanelContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/normal_font_size = 26
+text = "Settings"
+fit_content = true
+
+[node name="RotationContainer" type="VBoxContainer" parent="MainLayout/UIHolder/PanelContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="RotationLabel" type="RichTextLabel" parent="MainLayout/UIHolder/PanelContainer/VBoxContainer/RotationContainer"]
+layout_mode = 2
+text = "Change rotation:"
+fit_content = true
+vertical_alignment = 1
+
+[node name="RotationSlider" type="HSlider" parent="MainLayout/UIHolder/PanelContainer/VBoxContainer/RotationContainer"]
 layout_mode = 2
 min_value = -180.0
 max_value = 180.0
 value = -15.0
 
-[node name="CellSizeSlider" type="HSlider" parent="MainLayout/UIHolder/VBoxContainer"]
+[node name="CellSizeContainer" type="VBoxContainer" parent="MainLayout/UIHolder/PanelContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="CellSizeLabel" type="RichTextLabel" parent="MainLayout/UIHolder/PanelContainer/VBoxContainer/CellSizeContainer"]
+layout_mode = 2
+text = "Change cell size:"
+fit_content = true
+vertical_alignment = 1
+
+[node name="CellSizeSlider" type="HSlider" parent="MainLayout/UIHolder/PanelContainer/VBoxContainer/CellSizeContainer"]
 layout_mode = 2
 min_value = 30.0
 max_value = 500.0
@@ -62,5 +108,5 @@ step = 10.0
 value = 100.0
 rounded = true
 
-[connection signal="value_changed" from="MainLayout/UIHolder/VBoxContainer/RotationSlider" to="MainLayout" method="_on_rotation_slider_value_changed"]
-[connection signal="value_changed" from="MainLayout/UIHolder/VBoxContainer/CellSizeSlider" to="MainLayout" method="_on_cell_size_slider_value_changed"]
+[connection signal="value_changed" from="MainLayout/UIHolder/PanelContainer/VBoxContainer/RotationContainer/RotationSlider" to="MainLayout" method="_on_rotation_slider_value_changed"]
+[connection signal="value_changed" from="MainLayout/UIHolder/PanelContainer/VBoxContainer/CellSizeContainer/CellSizeSlider" to="MainLayout" method="_on_cell_size_slider_value_changed"]

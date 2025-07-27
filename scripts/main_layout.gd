@@ -1,8 +1,8 @@
 extends HBoxContainer
 
 # Get a reference to the UI element we need to listen to.
-@onready var rotation_slider: HSlider = $UIHolder/VBoxContainer/RotationSlider
-@onready var cell_size_slider: HSlider = $UIHolder/VBoxContainer/CellSizeSlider
+@onready var rotation_slider: HSlider = $UIHolder/PanelContainer/VBoxContainer/RotationContainer/RotationSlider
+@onready var cell_size_slider: HSlider = $UIHolder/PanelContainer/VBoxContainer/CellSizeContainer/CellSizeSlider
 
 # Get a reference to the game object we need to control.
 @onready var grid_handler: Node2D = $FrameHolder/SubViewportContainer/SubViewport/GridHandler
