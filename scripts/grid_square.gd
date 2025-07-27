@@ -12,10 +12,10 @@ signal square_clicked(id: Vector2i, button_index)
 # Initialise variables
 # Position is a default property of Area2D so no need to redefine it
 var id: Vector2i
-var points: PackedVector2Array
-var size: float
 var textures: Array
 
+var points: PackedVector2Array
+var size: float
 var initial_pattern_idx: int
 var current_pattern_idx: int:
 	set(val):
@@ -38,11 +38,12 @@ var shape_visible: bool = true:
 func setup(
 	# Identifiers
 	id: Vector2i, 						# unique ID for the grid square
-	position: Vector2,					# position of the centre of the square (pixels, I think)
-	size: float,						# size of one side of the square (pixels, I think?)
-	points: PackedVector2Array, 		# IMPORTANT: These points must be relative to (0,0), not the world position.
-	
 	textures: Array,					# reference to the array of textures used to generate the pattern
+
+	position: Vector2 = Vector2(0,0),   # position of the centre of the square (pixels, I think)
+	size: float = 0,					# size of one side of the square (pixels, I think?)
+	points: PackedVector2Array = [], 	# IMPORTANT: These points must be relative to (0,0), not the world position.
+	
 ):
 	self.id = id
 	self.position = position
@@ -56,7 +57,7 @@ func setup(
 
 	# Initialise collision bounding box using points
 	var bb_shape = ConvexPolygonShape2D.new()
-	bb_shape.points = points  # bb_shape.points is RELATIVE
+	if points.is_empty(): bb_shape.points = points  # bb_shape.points is RELATIVE
 	bb.shape = bb_shape
 
 func set_pattern(pattern_idx: int):
