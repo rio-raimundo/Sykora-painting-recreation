@@ -60,12 +60,14 @@ func resize(points: PackedVector2Array, position: Vector2, size: int):
 	self.position = position
 	self.size = size
 
-	# Update the background rectangle size
+	# Update rect and pattern sizes
+	_resize_rect()
+	_resize_pattern()
+
+# Update the background rectangle size
+func _resize_rect():
 	rect.size = Vector2(self.size, self.size)
 	rect.position = (-rect.size / 2.0).round()
-
-	# Update pattern size
-	_resize_pattern()
 
 func set_pattern(pattern_idx: int):
 	if !sprite: return
