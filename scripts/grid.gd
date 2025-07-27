@@ -83,9 +83,8 @@ func _update_grid():
 	# Currently this can only happen once, meaning the viewport and min_cell_size can't change after initialisation!
 	if grid_pool.is_empty(): _initialise_grid_pool()
 
-	# Draw the visible grid
-	# Currently this uses the old logic (need to change it)
-	_generate_all()
+	# Redraw the visible grid but don't update the shapes?
+	_generate_visible_grid()
 
 func _initialise_grid_pool():
 	# Figure out what the maximum number of squares that we might need is and save them in the pool
@@ -122,37 +121,10 @@ func _ready():
 
 
 func _generate_all():
-	# _generate_grid_squares()
 	_generate_visible_grid()
-	_generate_grid_square_attributes()
-	_generate_shapes()
+	_update_grid_squares()
 	queue_redraw()
 
-# func _generate_grid_squares():
-# 	visible_grid = []
-# 	# Points are relative to (0, 0) so they are the same for all squares
-# 	var points = gen_rectangle_points(Vector2(cell_size, cell_size))
-
-# 	# Initialise visible_grid object
-# 	for row in range(n_cells[0]):  # rows, so y
-# 		visible_grid.append([])
-# 		for col in range(n_cells[1]):  # cols, so x
-# 			# Calculate the position for this square
-# 			var position = (Vector2(col+0.5, row+0.5))  * cell_size - (grid_dim/2)
-			
-# 			# Initialise our grid square scene as a child and call the setup function
-# 			var instance = GridSquareScene.instantiate()
-# 			add_child(instance)
-# 			instance.setup(
-# 				Vector2i(row, col),
-# 				pattern_map.textures,
-
-# 				position,
-#  				cell_size,
-# 				points,
-# 			)
-# 			instance.square_clicked.connect(_on_grid_square_clicked)
-# 			visible_grid[row].append(instance)
 
 # Should be called whenever the cell_size changes! 
 func _generate_visible_grid():
@@ -183,9 +155,10 @@ func _generate_visible_grid():
 			g.size = cell_size
 
 
-func _generate_grid_square_attributes(
-	gen_color: bool = true,
-	gen_initial_patterns: bool = true,
+func _update_grid_squares(
+	gen_color: bool = false,
+	gen_initial_patterns: bool = false,
+	gen_shapes: bool = false,
 	shapes_visible: bool = true,
 ):
 	for row in range(n_cells[0]):
@@ -206,27 +179,27 @@ func _generate_grid_square_attributes(
 				visible_grid[row][col].initial_pattern_idx = initial_pattern_idx
 				visible_grid[row][col].orientation = grid_orientation
 
-func _generate_shapes():
-	# Draw patterns using a weighted random of the surrounding initial patterns
-	for row in range(n_cells[0]):
-		# Initialise counts array to keep track of pattern_map idxs in adjacent squares
-		var counts = []
-		counts.resize(len(pattern_map.textures))
-		counts.fill(0)
+	if gen_shapes:
+		# Draw patterns using a weighted random of the surrounding initial patterns
+		for row in range(n_cells[0]):
+			# Initialise counts array to keep track of pattern_map idxs in adjacent squares
+			var counts = []
+			counts.resize(len(pattern_map.textures))
+			counts.fill(0)
 
-		# Start with the first pattern_map in the row
-		counts[visible_grid[row][0].initial_pattern_idx] += 1
-		for col in range(n_cells[1]):
-			var g = visible_grid[row][col]
+			# Start with the first pattern_map in the row
+			counts[visible_grid[row][0].initial_pattern_idx] += 1
+			for col in range(n_cells[1]):
+				var g = visible_grid[row][col]
 
-			# --- GENERATE NEW PATTERN IDK ---
-			# The new pattern_name idx is determined by the three adjacent patterns in the row (x-1, x, x+1)
-			# Increment the counts by the next pattern_idx if not at end of row, and decrement by outdated one if not at start
-			if (col < n_cells[1] - 1): counts[visible_grid[row][col+1].initial_pattern_idx] += 1
-			if (col > 1): counts[visible_grid[row][col-2].initial_pattern_idx] -= 1
+				# --- GENERATE NEW PATTERN IDK ---
+				# The new pattern_name idx is determined by the three adjacent patterns in the row (x-1, x, x+1)
+				# Increment the counts by the next pattern_idx if not at end of row, and decrement by outdated one if not at start
+				if (col < n_cells[1] - 1): counts[visible_grid[row][col+1].initial_pattern_idx] += 1
+				if (col > 1): counts[visible_grid[row][col-2].initial_pattern_idx] -= 1
 
-			# Update the current pattern_name idx of the grid square
-			g.set_pattern(h.weighted_random(counts))
+				# Update the current pattern_name idx of the grid square
+				g.set_pattern(h.weighted_random(counts))
 
 
 # --- SIGNAL FUNCTIONS ---
@@ -262,26 +235,24 @@ func _input(event):
 	if (event is InputEventKey) and (event.keycode in LEGAL_KEYS):
 		# If S, reset the circle generation KEEPING THE SAME INITIAL PATTERN IDXS
 		if event.keycode == KEY_S and event.is_pressed() and not event.is_echo():
-			_generate_shapes()
+			_update_grid_squares(false, false, true)  # just regenerate shapes
 
 		# If P, reset the circle generation WITH NEW PATTERN IDXs
 		if event.keycode == KEY_P and event.is_pressed() and not event.is_echo():
-			_generate_grid_square_attributes(false, true)
-			_generate_shapes()
+			_update_grid_squares(false, true, true)
 
 		# If C, reset just the background colors
 		if event.keycode == KEY_C and event.is_pressed() and not event.is_echo():
-			_generate_grid_square_attributes(true, false)
+			_update_grid_squares(true)
 
 		# If R, reset everything
 		if event.keycode == KEY_R and event.is_pressed() and not event.is_echo():
-			_generate_grid_square_attributes(true, true)
-			_generate_shapes()
+			_update_grid_squares(true, true, true)
 
 		# If H, toggle hide/show circles
 		if event.keycode == KEY_H and event.is_pressed() and not event.is_echo():
 			show_shapes = !show_shapes
-			_generate_grid_square_attributes(false, false, show_shapes)
+			_update_grid_squares(false, false, false, show_shapes)
 		
 		# Redraw no matter what
 		queue_redraw()
