@@ -13,7 +13,7 @@ var h = Helpers
 # Load in class for specified pattern
 # Each class contains an array of starting probabilities and an array of textures, which are passed through to the GridSquares instances
 # Current available patterns can be found by querying PatternsList.PatternNames
-var pattern = PatternsList.Patterns[PatternsList.PatternNames.TRIANGLES1]
+var pattern = PatternsList.Patterns[PatternsList.PatternNames.SEMICIRCLES]
 
 # Initialise variables
 var viewport_size
@@ -21,7 +21,7 @@ var show_shapes = true
 var cell_dim: Vector2 = Vector2(cell_size, cell_size)
 var n_cells: Vector2
 var grid_dimensions: Vector2
-var centre_point: Vector2
+var origin: Vector2
 var grid_squares = []
 
 # Handle varaible initialisations that require ready
@@ -39,9 +39,14 @@ func _ready():
 func _on_viewport_size_changed():
 	# Here we update variables
 	viewport_size = get_viewport().size
-	n_cells = ceil(viewport_size / cell_size)	
-	grid_dimensions = n_cells * cell_size
-	centre_point = grid_dimensions/2
+
+	# We want to calculate number of cells as (rows, cols), so first we swap viewport coords (which are x,y)
+	var viewport_rc = Vector2(viewport_size[1], viewport_size[0])
+	# To convert, we want to know how many squares would fill the DIAGONAL of our viewport, since this will allow any rotation without gaps
+	n_cells = ceil(sqrt(2) * viewport_rc / cell_size)
+
+	# Origin is the centrepoint of the viewport minus the centre_point of the grid
+	grid_dimensions = Vector2(n_cells[1], n_cells[0]) * cell_size
 
 	print('current viewport size = ', viewport_size)
 	_generate_all()
@@ -82,12 +87,11 @@ func _generate_grid_squares():
 	grid_squares = []
 
 	# Initialise grid_squares object
-	for row in range(n_cells[0]):
+	for row in range(n_cells[0]):  # rows, so y
 		grid_squares.append([])
-		for col in range(n_cells[0]):
-			# Centre position never changes so we can initialise it
-			# We use this to calculate the size of the square
-			var position = (Vector2(col+0.5, row+0.5))  * cell_size
+		for col in range(n_cells[1]):  # cols, so x
+			# Calculate the position for this square
+			var position = (Vector2(col+0.5, row+0.5))  * cell_size - (grid_dimensions/2)
 			
 			# Initialise our grid square scene as a child and call the setup function
 			var instance = GridSquareScene.instantiate()

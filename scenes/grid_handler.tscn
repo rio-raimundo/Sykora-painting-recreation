@@ -7,7 +7,5 @@
 script = ExtResource("1_0gfhv")
 
 [node name="GridSquare" parent="." instance=ExtResource("2_c85b1")]
-visible = false
 
 [node name="Camera2D" type="Camera2D" parent="."]
-anchor_mode = 0
