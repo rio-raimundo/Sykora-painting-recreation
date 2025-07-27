@@ -85,6 +85,7 @@ func _update_grid():
 
 	# Redraw the visible grid but don't update the shapes?
 	_generate_visible_grid()
+	_update_grid_squares(true, true, true, true, false)  # update only squares which have NOT had shapes initialised
 
 func _initialise_grid_pool():
 	# Figure out what the maximum number of squares that we might need is and save them in the pool
@@ -120,12 +121,6 @@ func _ready():
 	update_viewport_size.call()
 
 
-func _generate_all():
-	_generate_visible_grid()
-	_update_grid_squares()
-	queue_redraw()
-
-
 # Should be called whenever the cell_size changes! 
 func _generate_visible_grid():
 	# Initialise the positions and sizes of the visible grid
@@ -152,43 +147,38 @@ func _generate_visible_grid():
 			visible_grid[row][col].resize(points, position, cell_size)
 
 
+# Function to update the grid squares, with a lot of options. Currently a bit multipurpose and awkward
 func _update_grid_squares(
 	gen_color: bool = false,
 	gen_initial_patterns: bool = false,
 	gen_shapes: bool = false,
 	shapes_visible: bool = true,
+	re_initialise: bool = true,
 ):
 	for row in range(n_cells[0]):
+		# Colors are determiend per row
+		var is_white = randf() < P_IS_WHITE
+
+		# For each row initialise counts array to keep track of pattern_map idxs in adjacent squares
+		var counts = []
+		counts.resize(len(pattern_map.textures))
+		counts.fill(0)
+
 		for col in range(n_cells[1]):
-			visible_grid[row][col].shape_visible = shapes_visible
+			var g = visible_grid[row][col]
+			if !re_initialise and g.pattern_initialised: continue
+			g.pattern_initialised = true  # initialise upon first call to this function
 
-	if gen_color:
-		for row in range(n_cells[0]):
-			var is_white = randf() < P_IS_WHITE
-			for col in range(n_cells[1]):
-				visible_grid[row][col].is_white = is_white
-				
-	if gen_initial_patterns:
-		for row in range(n_cells[0]):
-			for col in range(n_cells[1]):
-				var grid_orientation = (int(randf()*4) * 90)
-				var initial_pattern_idx = h.weighted_random(pattern_map.initial_probabilities)
-				visible_grid[row][col].initial_pattern_idx = initial_pattern_idx
-				visible_grid[row][col].orientation = grid_orientation
+			# Handle recoloring
+			if gen_color: g.is_white = is_white
 
-	if gen_shapes:
-		# Draw patterns using a weighted random of the surrounding initial patterns
-		for row in range(n_cells[0]):
-			# Initialise counts array to keep track of pattern_map idxs in adjacent squares
-			var counts = []
-			counts.resize(len(pattern_map.textures))
-			counts.fill(0)
+			# Handle initial pattern generation
+			if gen_initial_patterns:
+				g.initial_pattern_idx = h.weighted_random(pattern_map.initial_probabilities)
+				g.orientation = (int(randf()*4) * 90)
 
-			# Start with the first pattern_map in the row
-			counts[visible_grid[row][0].initial_pattern_idx] += 1
-			for col in range(n_cells[1]):
-				var g = visible_grid[row][col]
-
+			# Handle redrawing of shapes
+			if gen_shapes:
 				# --- GENERATE NEW PATTERN IDK ---
 				# The new pattern_name idx is determined by the three adjacent patterns in the row (x-1, x, x+1)
 				# Increment the counts by the next pattern_idx if not at end of row, and decrement by outdated one if not at start
@@ -197,6 +187,9 @@ func _update_grid_squares(
 
 				# Update the current pattern_name idx of the grid square
 				g.set_pattern(h.weighted_random(counts))
+
+			# Handle shape visibility
+			visible_grid[row][col].shape_visible = shapes_visible
 
 
 # --- SIGNAL FUNCTIONS ---

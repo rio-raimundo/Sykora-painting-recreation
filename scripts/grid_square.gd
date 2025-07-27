@@ -19,6 +19,7 @@ var points: PackedVector2Array:
 		bb.shape.points = val  # update collision bounding box
 		points = val  # maybe don't even need this? helps for accessing i guess
 
+var pattern_initialised  # whether the pattern for this square has ever been rendered
 var size: float
 var initial_pattern_idx: int
 var current_pattern_idx: int:
@@ -47,32 +48,43 @@ func setup(
 	self.id = id
 	self.textures = textures
 
-	# Initialise the background rectangle
-	rect.size = Vector2(self.size, self.size)
-	rect.position = (-rect.size / 2.0).round()
-
 	# Initialise collision bounding box using points
 	bb.shape = ConvexPolygonShape2D.new()
 
+# Should be called to resize the square.
+# NOTE: this is currently the only way to resize it - adjusting variables manually WILL NOT WORK because it will not resize rect or sprite.
+# TODO maybe change this by integrating with setters more closely in the future.
+# UPDATE: Patterns can now be resized by calling set pattern function directly.
 func resize(points: PackedVector2Array, position: Vector2, size: int):
 	self.points = points
 	self.position = position
 	self.size = size
 
+	# Update the background rectangle size
+	rect.size = Vector2(self.size, self.size)
+	rect.position = (-rect.size / 2.0).round()
+
+	# Update pattern size
+	_resize_pattern()
+
 func set_pattern(pattern_idx: int):
 	if !sprite: return
 	self.sprite.texture = self.textures[pattern_idx]
-	var texture_size = self.sprite.texture.get_size()
+	_resize_pattern()
 
+func _resize_pattern():
+	if !sprite or !sprite.texture: return
+
+	# Update the sprite parameters
 	# This stops the infuriating anti-aliasing effect by basically putting the sprite RIGHT in the middle of the color rect
 	# TODO look at this at some point cods I bet you can neaten it, but for now I'm going to bed
+	var texture_size = sprite.texture.get_size()
 	var target_rect = rect.get_rect()
 	sprite.scale = Vector2(
 		target_rect.size.x / texture_size.x,
 		target_rect.size.y / texture_size.y
 	)
 	self.sprite.position = (target_rect.position + target_rect.size / 2.0)
-
 	self.sprite.scale = Vector2(self.size / texture_size.x, self.size / texture_size.y)  # make sure the sprite fits in the grid perfectly
 
 
