@@ -1,7 +1,9 @@
-[gd_scene load_steps=3 format=3 uid="uid://df21lel0ccd5t"]
+[gd_scene load_steps=4 format=3 uid="uid://df21lel0ccd5t"]
 
 [ext_resource type="PackedScene" uid="uid://dpsrkja6epky2" path="res://scenes/grid_handler.tscn" id="1_h2w21"]
 [ext_resource type="Script" uid="uid://byv2wqs2jt0ap" path="res://scripts/main_layout.gd" id="1_prwh2"]
+
+[sub_resource type="Theme" id="Theme_prwh2"]
 
 [node name="Control" type="Control"]
 layout_mode = 3
@@ -26,6 +28,7 @@ size_flags_horizontal = 3
 
 [node name="SubViewportContainer" type="SubViewportContainer" parent="MainLayout/FrameHolder"]
 layout_mode = 2
+theme = SubResource("Theme_prwh2")
 stretch = true
 
 [node name="SubViewport" type="SubViewport" parent="MainLayout/FrameHolder/SubViewportContainer"]
@@ -50,8 +53,13 @@ layout_mode = 2
 min_value = -180.0
 max_value = 180.0
 
-[node name="RichTextLabel" type="RichTextLabel" parent="MainLayout/UIHolder/VBoxContainer"]
+[node name="CellSizeSlider" type="HSlider" parent="MainLayout/UIHolder/VBoxContainer"]
 layout_mode = 2
-text = "Rotation angle"
+min_value = 10.0
+max_value = 500.0
+step = 10.0
+value = 100.0
+rounded = true
 
 [connection signal="value_changed" from="MainLayout/UIHolder/VBoxContainer/RotationSlider" to="MainLayout" method="_on_rotation_slider_value_changed"]
+[connection signal="value_changed" from="MainLayout/UIHolder/VBoxContainer/CellSizeSlider" to="MainLayout" method="_on_cell_size_slider_value_changed"]

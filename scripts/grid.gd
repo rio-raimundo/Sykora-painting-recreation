@@ -2,7 +2,14 @@ extends Node2D
 
 # --- INITIALISE VARIABLES ---
 # Manually declared variables
-var cell_size: float = 100							# length (height and width) of a single cell (px)
+# length (height and width) of a cell (px)
+var cell_size: float:
+	set(new_value):
+		cell_size = new_value
+		_generate_all()
+	get:
+		return cell_size
+
 const WORLD_ROTATION: float = 0
 const N_SEMICIRCLE_SEGMENTS: int = 64
 const P_IS_WHITE = 0.5  # probability that a given row's background color is white
@@ -23,6 +30,7 @@ var n_cells: Vector2
 var grid_dimensions: Vector2
 var origin: Vector2
 var grid_squares = []
+var min_cell_size  # initialised in main_layout by the minimum value of the cell_size slider
 
 # Handle varaible initialisations that require ready
 @onready var viewport: Viewport = get_viewport()
@@ -36,6 +44,9 @@ func _ready():
 	viewport.size_changed.connect(_on_viewport_size_changed)
 	_on_viewport_size_changed()  # Handle drawing everything
 
+	print('minimum cell size = ', min_cell_size)
+
+
 func _on_viewport_size_changed():
 	# Here we update variables
 	viewport_size = get_viewport().size
@@ -47,8 +58,6 @@ func _on_viewport_size_changed():
 
 	# Origin is the centrepoint of the viewport minus the centre_point of the grid
 	grid_dimensions = Vector2(n_cells[1], n_cells[0]) * cell_size
-
-	print('current viewport size = ', viewport_size)
 	_generate_all()
 
 func _on_grid_square_clicked(
@@ -83,8 +92,8 @@ func _generate_all():
 
 func _generate_grid_squares():
 	# Points are relative to (0, 0) so they are the same for all squares
-	var points = gen_square_points(cell_dim)
 	grid_squares = []
+	var points = gen_square_points(cell_dim)
 
 	# Initialise grid_squares object
 	for row in range(n_cells[0]):  # rows, so y
@@ -131,7 +140,7 @@ func _generate_grid_square_attributes(
 				grid_squares[row][col].orientation = grid_orientation
 
 func _generate_shapes():
-	# Draw all grid squares and patterns to the screen
+	# Draw patterns using a weighted random of the surrounding initial patterns
 	for row in range(n_cells[0]):
 		# Initialise counts array to keep track of pattern idxs in adjacent squares
 		var counts = []
@@ -141,7 +150,6 @@ func _generate_shapes():
 		# Start with the first pattern in the row
 		counts[grid_squares[row][0].initial_pattern_idx] += 1
 		for col in range(n_cells[1]):
-			# assert(false)
 			var g = grid_squares[row][col]
 
 			# --- GENERATE NEW PATTERN IDK ---
