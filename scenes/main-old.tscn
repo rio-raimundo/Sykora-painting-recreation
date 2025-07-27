@@ -3,9 +3,16 @@
 [ext_resource type="Script" uid="uid://caqbfqfqy5ojt" path="res://scripts/grid.gd" id="1_o5qli"]
 [ext_resource type="PackedScene" uid="uid://cyjwv31o2mt27" path="res://scenes/grid_square.tscn" id="2_0wfyh"]
 
-[node name="GridHandler" type="Node2D"]
-script = ExtResource("1_o5qli")
-
-[node name="GridSquare" parent="." instance=ExtResource("2_0wfyh")]
+[node name="Node" type="Node"]
 
 [node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(15, 10)
+anchor_mode = 0
+
+[node name="GridHandler" type="Node2D" parent="."]
+position = Vector2(1000, 1000)
+rotation = -0.0122173
+script = ExtResource("1_o5qli")
+
+[node name="GridSquare" parent="GridHandler" instance=ExtResource("2_0wfyh")]
+visible = false

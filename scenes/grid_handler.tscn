@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3 uid="uid://dpsrkja6epky2"]
+
+[ext_resource type="Script" uid="uid://caqbfqfqy5ojt" path="res://scripts/grid.gd" id="1_0gfhv"]
+[ext_resource type="PackedScene" uid="uid://cyjwv31o2mt27" path="res://scenes/grid_square.tscn" id="2_c85b1"]
+
+[node name="GridHandler" type="Node2D"]
+script = ExtResource("1_0gfhv")
+
+[node name="GridSquare" parent="." instance=ExtResource("2_c85b1")]
+visible = false
+
+[node name="Camera2D" type="Camera2D" parent="."]
+anchor_mode = 0

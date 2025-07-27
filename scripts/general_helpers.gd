@@ -11,7 +11,8 @@ func weighted_random(probabilities: Array):
 	var rnd_guess = randf() * sum(probabilities)
 
 	for i in range(len(probabilities)):
-		if rnd_guess < probabilities[i]: return i
+		if rnd_guess < probabilities[i]:
+			return i
 		rnd_guess -= probabilities[i]
 
 func rotate_by(point: Vector2, angle: float, centre: Vector2 = Vector2(0,0)):

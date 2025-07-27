@@ -1,0 +1,41 @@
+[gd_scene load_steps=2 format=3 uid="uid://df21lel0ccd5t"]
+
+[ext_resource type="PackedScene" uid="uid://dpsrkja6epky2" path="res://scenes/grid_handler.tscn" id="1_h2w21"]
+
+[node name="Control" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MainLayout" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="FrameHolder" type="PanelContainer" parent="MainLayout"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SubViewportContainer" type="SubViewportContainer" parent="MainLayout/FrameHolder"]
+layout_mode = 2
+stretch = true
+
+[node name="SubViewport" type="SubViewport" parent="MainLayout/FrameHolder/SubViewportContainer"]
+handle_input_locally = false
+physics_object_picking = true
+size = Vector2i(961, 900)
+size_2d_override_stretch = true
+render_target_update_mode = 4
+
+[node name="GridHandler" parent="MainLayout/FrameHolder/SubViewportContainer/SubViewport" instance=ExtResource("1_h2w21")]
+
+[node name="UIHolder" type="PanelContainer" parent="MainLayout"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.66

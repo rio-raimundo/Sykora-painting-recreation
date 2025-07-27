@@ -2,8 +2,8 @@ extends Node2D
 
 # --- INITIALISE VARIABLES ---
 # Manually declared variables
-const N_CELLS: int = 12
-const WORLD_ROTATION: float = -15
+var cell_size: float = 100							# length (height and width) of a single cell (px)
+const WORLD_ROTATION: float = 0
 const N_SEMICIRCLE_SEGMENTS: int = 64
 const P_IS_WHITE = 0.5  # probability that a given row's background color is white
 
@@ -15,56 +15,36 @@ var h = Helpers
 # Current available patterns can be found by querying PatternsList.PatternNames
 var pattern = PatternsList.Patterns[PatternsList.PatternNames.TRIANGLES1]
 
-# Calculated variables
-const EXTRA_DRAWN = max(1, N_CELLS/6) * 2		# How many 'offscreen' cells to draw because of the tilt angle. Defaults to 1/3, minimum of 2. Must be even.
-const N_DRAWN_CELLS: int = N_CELLS + EXTRA_DRAWN  # Total n drawn cells including offscreen cells
-var show_shapes: bool = true
-
 # Initialise variables
-var win_dim: Vector2		# dimensions of the window
-var grid_length: float		# length (height and width) of the square grid
-var cell_size: float		# length (height and width) of a single cell
-var centre_point: Vector2	# centre-point of the entire grid
-var grid_squares = []  		# array over all squares
+var viewport_size
+var show_shapes = true
+var cell_dim: Vector2 = Vector2(cell_size, cell_size)
+var n_cells: Vector2
+var grid_dimensions: Vector2
+var centre_point: Vector2
+var grid_squares = []
+
+# Handle varaible initialisations that require ready
+@onready var viewport: Viewport = get_viewport()
 
 # --- MAIN FUNCTIONS ---
 func _ready():
 	# Seed the random seed generator with a unique value
-	self.rotation_degrees = WORLD_ROTATION
 	randomize()
-	_update_viewport()  # this sets centre point and other screen related things
 
-	# Points are relative to (0, 0) so they are the same for all squares
-	var points = gen_square_points(Vector2(cell_size, cell_size))
+	# We establish a signal to execute when the viewport size is changed.
+	viewport.size_changed.connect(_on_viewport_size_changed)
+	_on_viewport_size_changed()  # Handle drawing everything
 
-	# Initialise grid_squares object
-	for row in range(N_DRAWN_CELLS):
-		grid_squares.append([])
-		for col in range(N_DRAWN_CELLS):
-			# Centre position never changes so we can initialise it
-			# We use this to calculate the size of the square
-			var position = Vector2(
-				(col)*cell_size + cell_size/2,
-				(row)*cell_size + cell_size/2
-			) - Vector2((cell_size*N_DRAWN_CELLS)/2, (cell_size*N_DRAWN_CELLS)/2)
-			
-			# Initialise our grid square scene as a child and call the setup function
-			var instance = GridSquareScene.instantiate()
-			add_child(instance)
-			instance.setup(
-				Vector2i(row, col),
-				position,
- 				cell_size,
-				points,
-				pattern.textures
-			)
-			instance.square_clicked.connect(_on_grid_square_clicked)
-			grid_squares[row].append(instance)
+func _on_viewport_size_changed():
+	# Here we update variables
+	viewport_size = get_viewport().size
+	n_cells = ceil(viewport_size / cell_size)	
+	grid_dimensions = n_cells * cell_size
+	centre_point = grid_dimensions/2
 
-	# Generate the grid squares and semicircles and queue the first redraw of the scene
-	_generate_grid_squares()
-	_generate_shapes()
-	queue_redraw()
+	print('current viewport size = ', viewport_size)
+	_generate_all()
 
 func _on_grid_square_clicked(
 	id: Vector2i,
@@ -90,24 +70,57 @@ func _on_grid_square_clicked(
 
 	queue_redraw()
 
-func _generate_grid_squares(
+func _generate_all():
+	_generate_grid_squares()
+	_generate_grid_square_attributes()
+	_generate_shapes()
+	queue_redraw()
+
+func _generate_grid_squares():
+	# Points are relative to (0, 0) so they are the same for all squares
+	var points = gen_square_points(cell_dim)
+	grid_squares = []
+
+	# Initialise grid_squares object
+	for row in range(n_cells[0]):
+		grid_squares.append([])
+		for col in range(n_cells[0]):
+			# Centre position never changes so we can initialise it
+			# We use this to calculate the size of the square
+			var position = (Vector2(col+0.5, row+0.5))  * cell_size
+			
+			# Initialise our grid square scene as a child and call the setup function
+			var instance = GridSquareScene.instantiate()
+			add_child(instance)
+			instance.setup(
+				Vector2i(row, col),
+				position,
+ 				cell_size,
+				points,
+				pattern.textures
+			)
+			instance.square_clicked.connect(_on_grid_square_clicked)
+			grid_squares[row].append(instance)
+
+
+func _generate_grid_square_attributes(
 	gen_color: bool = true,
 	gen_initial_patterns: bool = true,
 	shapes_visible: bool = true,
 ):
-	for row in range(N_DRAWN_CELLS):
-		for col in range(N_DRAWN_CELLS):
+	for row in range(n_cells[0]):
+		for col in range(n_cells[1]):
 			grid_squares[row][col].shape_visible = shapes_visible
 
 	if gen_color:
-		for row in range(N_DRAWN_CELLS):
+		for row in range(n_cells[0]):
 			var is_white = randf() < P_IS_WHITE
-			for col in range(N_DRAWN_CELLS):
+			for col in range(n_cells[1]):
 				grid_squares[row][col].is_white = is_white
 				
 	if gen_initial_patterns:
-		for row in range(N_DRAWN_CELLS):
-			for col in range(N_DRAWN_CELLS):
+		for row in range(n_cells[0]):
+			for col in range(n_cells[1]):
 				var grid_orientation = (int(randf()*4) * 90)
 				var initial_pattern_idx = h.weighted_random(pattern.initial_probabilities)
 				grid_squares[row][col].initial_pattern_idx = initial_pattern_idx
@@ -115,34 +128,29 @@ func _generate_grid_squares(
 
 func _generate_shapes():
 	# Draw all grid squares and patterns to the screen
-	for row in range(N_DRAWN_CELLS):
+	for row in range(n_cells[0]):
 		# Initialise counts array to keep track of pattern idxs in adjacent squares
 		var counts = []
 		counts.resize(len(pattern.textures))
 		counts.fill(0)
 
-		for col in range(N_DRAWN_CELLS):
+		# Start with the first pattern in the row
+		counts[grid_squares[row][0].initial_pattern_idx] += 1
+		for col in range(n_cells[1]):
+			# assert(false)
 			var g = grid_squares[row][col]
 
 			# --- GENERATE NEW PATTERN IDK ---
 			# The new pattern_name idx is determined by the three adjacent patterns in the row (x-1, x, x+1)
 			# Increment the counts by the next pattern_idx if not at end of row, and decrement by outdated one if not at start
-			if (col < N_DRAWN_CELLS - 1): counts[grid_squares[row][col+1].initial_pattern_idx] += 1
+			if (col < n_cells[1] - 1): counts[grid_squares[row][col+1].initial_pattern_idx] += 1
 			if (col > 1): counts[grid_squares[row][col-2].initial_pattern_idx] -= 1
 
 			# Update the current pattern_name idx of the grid square
 			g.set_pattern(h.weighted_random(counts))
 
-func _update_viewport():
-	# Update the viewport if it has changed on every redraw
-	var tmp_dim = get_viewport().get_visible_rect().size
-	if win_dim != tmp_dim:
-		win_dim = tmp_dim
-		grid_length = min(win_dim.x, win_dim.y)
-		cell_size = grid_length / N_CELLS
-
 func _draw():
-	_update_viewport()
+	pass
 
 # Handle inputs
 # TODO SHIFT THROUGH PATTERNS ON LEFT CLICK, ROTATE ON RIGHT CLICK, LOCK ON MIDDLE? 
@@ -156,22 +164,22 @@ func _input(event):
 
 		# If P, reset the circle generation WITH NEW PATTERN IDXs
 		if event.keycode == KEY_P and event.is_pressed() and not event.is_echo():
-			_generate_grid_squares(false, true)
+			_generate_grid_square_attributes(false, true)
 			_generate_shapes()
 
 		# If C, reset just the background colors
 		if event.keycode == KEY_C and event.is_pressed() and not event.is_echo():
-			_generate_grid_squares(true, false)
+			_generate_grid_square_attributes(true, false)
 
 		# If R, reset everything
 		if event.keycode == KEY_R and event.is_pressed() and not event.is_echo():
-			_generate_grid_squares(true, true)
+			_generate_grid_square_attributes(true, true)
 			_generate_shapes()
 
 		# If H, toggle hide/show circles
 		if event.keycode == KEY_H and event.is_pressed() and not event.is_echo():
 			show_shapes = !show_shapes
-			_generate_grid_squares(false, false, show_shapes)
+			_generate_grid_square_attributes(false, false, show_shapes)
 		
 		# Redraw no matter what
 		queue_redraw()
