@@ -80,6 +80,8 @@ func _initialise_grid():
 	# 		instance.square_clicked.connect(_on_grid_square_clicked)
 	# 		grid_squares_pool[row].append(instance)
 
+	_generate_all()
+
 
 
 func _ready():
@@ -115,10 +117,11 @@ func _generate_grid_squares():
 			add_child(instance)
 			instance.setup(
 				Vector2i(row, col),
+				pattern_map.textures,
+				
 				position,
  				cell_size,
 				points,
-				pattern_map.textures
 			)
 			instance.square_clicked.connect(_on_grid_square_clicked)
 			active_grid_squares[row].append(instance)
