@@ -32,8 +32,8 @@ var max_n_cells: Vector2i		# The maximum number of cells stored in the pool
 var grid_dim: Vector2			# Dimensions of the visible cell grid
 var grid_origin: Vector2		# Top left corner of the visible cell grid. Calculated so grid centre is at (0,0)
 
-var grid_squares_pool = []		# 2D Array of all GridSquareScene objects that could be drawn
-var active_grid_squares = []	# 2D Array of GridSquareScene object references to be drawn to the viewport
+var grid_pool = []		# 2D Array of all GridSquareScene objects that could be drawn
+var visible_grid = []	# 2D Array of GridSquareScene object references to be drawn to the viewport
 
 
 # --- INITIALISE GETTERS AND SETTERS ---
@@ -81,7 +81,7 @@ func _update_grid():
 
 	# Initialise the grid pool if it hasn't been yet
 	# Currently this can only happen once, meaning the viewport and min_cell_size can't change after initialisation!
-	if !grid_squares_pool.is_empty(): _initialise_grid_pool()
+	if grid_pool.is_empty(): _initialise_grid_pool()
 
 	# Draw the visible grid
 	# Currently this uses the old logic (need to change it)
@@ -95,9 +95,9 @@ func _initialise_grid_pool():
 
 	# With min cell size of 10, this is 128r * 136c  = 17000. Try it and see? Might have to adjust minimum cell size
 	# Initialise the cell pool
-	grid_squares_pool = []  # reset the pool
+	grid_pool = []  # reset the pool
 	for row in max_n_cells[0]:
-		grid_squares_pool.append([])
+		grid_pool.append([])
 		
 		for col in max_n_cells[1]:
 			var instance = GridSquareScene.instantiate()
@@ -107,7 +107,7 @@ func _initialise_grid_pool():
 				pattern_map.textures  # references to texture options to draw
 			)
 			instance.square_clicked.connect(_on_grid_square_clicked)
-			grid_squares_pool[row].append(instance)
+			grid_pool[row].append(instance)
 
 
 
@@ -122,42 +122,65 @@ func _ready():
 
 
 func _generate_all():
-	_generate_grid_squares()
+	# _generate_grid_squares()
+	_generate_visible_grid()
 	_generate_grid_square_attributes()
 	_generate_shapes()
 	queue_redraw()
 
-func _generate_grid_squares():
-	# Points are relative to (0, 0) so they are the same for all squares
-	active_grid_squares = []
-	var points = gen_rectangle_points(Vector2(cell_size, cell_size))
+# func _generate_grid_squares():
+# 	visible_grid = []
+# 	# Points are relative to (0, 0) so they are the same for all squares
+# 	var points = gen_rectangle_points(Vector2(cell_size, cell_size))
 
-	# Initialise active_grid_squares object
-	for row in range(n_cells[0]):  # rows, so y
-		active_grid_squares.append([])
-		for col in range(n_cells[1]):  # cols, so x
-			# Calculate the position for this square
-			var position = (Vector2(col+0.5, row+0.5))  * cell_size - (grid_dim/2)
+# 	# Initialise visible_grid object
+# 	for row in range(n_cells[0]):  # rows, so y
+# 		visible_grid.append([])
+# 		for col in range(n_cells[1]):  # cols, so x
+# 			# Calculate the position for this square
+# 			var position = (Vector2(col+0.5, row+0.5))  * cell_size - (grid_dim/2)
 			
-			# Initialise our grid square scene as a child and call the setup function
-			var instance = GridSquareScene.instantiate()
-			add_child(instance)
-			instance.setup(
-				Vector2i(row, col),
-				pattern_map.textures,
+# 			# Initialise our grid square scene as a child and call the setup function
+# 			var instance = GridSquareScene.instantiate()
+# 			add_child(instance)
+# 			instance.setup(
+# 				Vector2i(row, col),
+# 				pattern_map.textures,
 
-				position,
- 				cell_size,
-				points,
-			)
-			instance.square_clicked.connect(_on_grid_square_clicked)
-			active_grid_squares[row].append(instance)
+# 				position,
+#  				cell_size,
+# 				points,
+# 			)
+# 			instance.square_clicked.connect(_on_grid_square_clicked)
+# 			visible_grid[row].append(instance)
 
 # Should be called whenever the cell_size changes! 
-func _generate_visible_grid(
+func _generate_visible_grid():
+	# Initialise the positions and sizes of the visible grid
+	visible_grid = []
 
-):
-	pass
+	# Points are relative to (0, 0) so they are the same for all squares
+	var points = gen_rectangle_points(Vector2(cell_size, cell_size))
+
+	# Loop through the pool from the vis starting idx
+	for row in range(n_cells[0]):
+		visible_grid.append([])
+		var x0 = vis_grid_starting_idxs[0]
+		print(x0)
+		for col in range(n_cells[1]):
+			var y0 = vis_grid_starting_idxs[1]
+
+			# Chuck reference to grid square into our visible_grid array
+			visible_grid[row].append(grid_pool[x0+row][y0+col])
+
+			# Calculate the position for this square
+			var position = (Vector2(col+0.5, row+0.5))  * cell_size - (grid_dim/2)
+
+			# Assign position, points and size to our GridSquare
+			var g = visible_grid[row][col]
+			g.points = points
+			g.position = position
+			g.size = cell_size
 
 
 func _generate_grid_square_attributes(
@@ -167,21 +190,21 @@ func _generate_grid_square_attributes(
 ):
 	for row in range(n_cells[0]):
 		for col in range(n_cells[1]):
-			active_grid_squares[row][col].shape_visible = shapes_visible
+			visible_grid[row][col].shape_visible = shapes_visible
 
 	if gen_color:
 		for row in range(n_cells[0]):
 			var is_white = randf() < P_IS_WHITE
 			for col in range(n_cells[1]):
-				active_grid_squares[row][col].is_white = is_white
+				visible_grid[row][col].is_white = is_white
 				
 	if gen_initial_patterns:
 		for row in range(n_cells[0]):
 			for col in range(n_cells[1]):
 				var grid_orientation = (int(randf()*4) * 90)
 				var initial_pattern_idx = h.weighted_random(pattern_map.initial_probabilities)
-				active_grid_squares[row][col].initial_pattern_idx = initial_pattern_idx
-				active_grid_squares[row][col].orientation = grid_orientation
+				visible_grid[row][col].initial_pattern_idx = initial_pattern_idx
+				visible_grid[row][col].orientation = grid_orientation
 
 func _generate_shapes():
 	# Draw patterns using a weighted random of the surrounding initial patterns
@@ -192,15 +215,15 @@ func _generate_shapes():
 		counts.fill(0)
 
 		# Start with the first pattern_map in the row
-		counts[active_grid_squares[row][0].initial_pattern_idx] += 1
+		counts[visible_grid[row][0].initial_pattern_idx] += 1
 		for col in range(n_cells[1]):
-			var g = active_grid_squares[row][col]
+			var g = visible_grid[row][col]
 
 			# --- GENERATE NEW PATTERN IDK ---
 			# The new pattern_name idx is determined by the three adjacent patterns in the row (x-1, x, x+1)
 			# Increment the counts by the next pattern_idx if not at end of row, and decrement by outdated one if not at start
-			if (col < n_cells[1] - 1): counts[active_grid_squares[row][col+1].initial_pattern_idx] += 1
-			if (col > 1): counts[active_grid_squares[row][col-2].initial_pattern_idx] -= 1
+			if (col < n_cells[1] - 1): counts[visible_grid[row][col+1].initial_pattern_idx] += 1
+			if (col > 1): counts[visible_grid[row][col-2].initial_pattern_idx] -= 1
 
 			# Update the current pattern_name idx of the grid square
 			g.set_pattern(h.weighted_random(counts))
@@ -212,7 +235,7 @@ func _on_grid_square_clicked(
 	id: Vector2i,
 	button_index
 ):
-	var g = active_grid_squares[id[0]][id[1]]
+	var g = grid_pool[id[0]][id[1]]  # id is unique to all grids in the entire pool
 
 	# Left clicks cycle through patterns
 	if button_index == MOUSE_BUTTON_LEFT:
@@ -221,7 +244,7 @@ func _on_grid_square_clicked(
 	# Right clicks cycle through the color of a line
 	# So we have to get all the squares in that line
 	elif button_index == MOUSE_BUTTON_RIGHT:
-		for square in active_grid_squares[id[0]]:
+		for square in visible_grid[id[0] - vis_grid_starting_idxs[0]]:
 			square.is_white = !square.is_white
 
 	# Scrolling handles the rotation

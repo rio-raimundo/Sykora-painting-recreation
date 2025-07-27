@@ -14,7 +14,11 @@ signal square_clicked(id: Vector2i, button_index)
 var id: Vector2i
 var textures: Array
 
-var points: PackedVector2Array
+var points: PackedVector2Array:
+	set(val):
+		bb.shape.points = val  # update collision bounding box
+		points = val  # maybe don't even need this? helps for accessing i guess
+
 var size: float
 var initial_pattern_idx: int
 var current_pattern_idx: int:
@@ -39,16 +43,8 @@ func setup(
 	# Identifiers
 	id: Vector2i, 						# unique ID for the grid square
 	textures: Array,					# reference to the array of textures used to generate the pattern
-
-	position: Vector2 = Vector2(0,0),   # position of the centre of the square (pixels, I think)
-	size: float = 0,					# size of one side of the square (pixels, I think?)
-	points: PackedVector2Array = [], 	# IMPORTANT: These points must be relative to (0,0), not the world position.
-	
 ):
 	self.id = id
-	self.position = position
-	self.size = size
-	self.points = points
 	self.textures = textures
 
 	# Initialise the background rectangle
@@ -56,9 +52,7 @@ func setup(
 	rect.position = (-rect.size / 2.0).round()
 
 	# Initialise collision bounding box using points
-	var bb_shape = ConvexPolygonShape2D.new()
-	if !points.is_empty(): bb_shape.points = points  # bb_shape.points is RELATIVE
-	bb.shape = bb_shape
+	bb.shape = ConvexPolygonShape2D.new()
 
 func set_pattern(pattern_idx: int):
 	if !sprite: return
