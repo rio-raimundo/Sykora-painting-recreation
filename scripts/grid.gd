@@ -176,8 +176,8 @@ func _update_row_colors(draw: bool = true):
 
 
 func _toggle_shape_visibility(shapes_visible: bool):
-	for row in vis_grid_starting_idxs[0]:
-		for col in vis_grid_starting_idxs[1]:
+	for row in max_n_cells[0]:
+		for col in max_n_cells[1]:
 			grid_pool[row][col].shape_visible = shapes_visible
 
 

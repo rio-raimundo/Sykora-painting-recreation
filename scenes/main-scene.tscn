@@ -105,7 +105,7 @@ layout_mode = 2
 min_value = 30.0
 max_value = 500.0
 step = 10.0
-value = 100.0
+value = 200.0
 rounded = true
 
 [connection signal="value_changed" from="MainLayout/UIHolder/PanelContainer/VBoxContainer/RotationContainer/RotationSlider" to="MainLayout" method="_on_rotation_slider_value_changed"]
