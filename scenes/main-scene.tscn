@@ -52,6 +52,7 @@ layout_mode = 2
 layout_mode = 2
 min_value = -180.0
 max_value = 180.0
+value = -15.0
 
 [node name="CellSizeSlider" type="HSlider" parent="MainLayout/UIHolder/VBoxContainer"]
 layout_mode = 2

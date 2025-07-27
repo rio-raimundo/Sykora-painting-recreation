@@ -29,6 +29,7 @@ var show_shapes = true			# Whether shapes should be draw. starts as true, can be
 
 var n_cells: Vector2i			# Number of cells to draw on screen. Determined dynamically by cell and viewport size
 var max_n_cells: Vector2i		# The maximum number of cells stored in the pool
+var all_row_cols: Array			# Vector with length (max_n_cells) storing the colors of each row in the painting
 var grid_dim: Vector2			# Dimensions of the visible cell grid
 var grid_origin: Vector2		# Top left corner of the visible cell grid. Calculated so grid centre is at (0,0)
 
@@ -83,13 +84,16 @@ func _update_grid():
 
 	# Redraw the visible grid but don't update the shapes?
 	_update_visible_grid()
-	_update_grid_squares(true, true, false)  # update only squares which have NOT had shapes initialised
+	_update_grid_squares(true, false)  # update only squares which have NOT had shapes initialised
 
 func _initialise_grid_pool():
 	# Figure out what the maximum number of squares that we might need is and save them in the pool
 	# We want to calculate number of cells as (rows, cols), so first we swap viewport coords (which are x,y)
 	var viewport_rc = Vector2(viewport_size[1], viewport_size[0])
 	max_n_cells = _make_even_ceil(sqrt(2) * viewport_rc / min_cell_size)
+
+	# Now that we have max_n_cells we can initialise the row colors too 
+	_update_row_colors(false)  # set draw to false because we dont have patterns yet
 
 	# With min cell size of 10, this is 128r * 136c  = 17000. Try it and see? Might have to adjust minimum cell size
 	# Initialise the cell pool
@@ -149,7 +153,6 @@ func _update_visible_grid():
 
 # Function to update the grid squares, with a lot of options. Currently a bit multipurpose and awkward
 func _update_grid_squares(
-	gen_color: bool = false,
 	gen_initial_patterns: bool = false,
 	re_initialise: bool = true,
 ):
@@ -159,16 +162,21 @@ func _update_grid_squares(
 			if !re_initialise and g.pattern_initialised: continue
 			g.pattern_initialised = true  # initialise upon first call to this function
 
+			# Make sure all cells have the right color (in case n_cells increases)
+			g.is_white = all_row_cols[vis_grid_starting_idxs[0] + row]
+
 			# Handle initial pattern generation
 			if gen_initial_patterns:
 				g.initial_pattern_idx = h.weighted_random(pattern_map.initial_probabilities)
 				g.orientation = (int(randf()*4) * 90)
 				g.set_pattern(g.initial_pattern_idx)
 
-		# Colors are determiend per row
-		if gen_color:
-			var is_white = randf() < P_IS_WHITE
-			for col in range(max_n_cells[1]): grid_pool[vis_grid_starting_idxs[0]+row][col].is_white = is_white
+func _update_row_colors(draw: bool = true):
+	all_row_cols.resize(max_n_cells[0]); all_row_cols.fill(0)
+	for row in range(max_n_cells[0]):
+		all_row_cols[row] = randf() < P_IS_WHITE
+	if draw: _update_grid_squares(false)
+
 
 func _toggle_shape_visibility(shapes_visible: bool):
 	for row in vis_grid_starting_idxs[0]:
@@ -209,15 +217,15 @@ func _input(event):
 	if (event is InputEventKey) and (event.keycode in LEGAL_KEYS):
 		# If P, reset the circle generation WITH NEW PATTERN IDXs
 		if event.keycode == KEY_P and event.is_pressed() and not event.is_echo():
-			_update_grid_squares(false, true)
+			_update_grid_squares(true)
 
 		# If C, reset just the background colors
 		if event.keycode == KEY_C and event.is_pressed() and not event.is_echo():
-			_update_grid_squares(true)
+			_update_row_colors()
 
 		# If R, reset everything
 		if event.keycode == KEY_R and event.is_pressed() and not event.is_echo():
-			_update_grid_squares(true, true)
+			_update_grid_squares(true)
 
 		# If H, toggle hide/show circles
 		if event.keycode == KEY_H and event.is_pressed() and not event.is_echo():

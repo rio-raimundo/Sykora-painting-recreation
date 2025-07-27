@@ -10,7 +10,11 @@ extends HBoxContainer
 
 # We will add the connecting logic in the next step.
 func _ready():
-	_on_cell_size_slider_value_changed(cell_size_slider.value)  # pass initial value
+	# Pass initial values
+	_on_cell_size_slider_value_changed(cell_size_slider.value)
+	_on_rotation_slider_value_changed(rotation_slider.value)
+
+	# Update minimum cell size, once
 	grid_handler.min_cell_size = cell_size_slider.min_value
 
 
